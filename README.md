@@ -14,9 +14,17 @@ Built for #BuildHybridAI. Inference goes through Firebase AI Logic, on-device fi
 
 ## GoogleService-Info.plist
 
-The file is gitignored because this repository is public. The app still compiles without it. At launch, a missing plist is logged and `FirebaseApp.configure()` is skipped. Remote Config then stays on the bundled defaults.
+The file is gitignored because this repository is public. The LetterLens-iOS target has a Run Script phase, **Check GoogleService-Info.plist**, ordered before Compile Sources. It requires `${SRCROOT}/LetterLens-iOS/GoogleService-Info.plist`. When that file is missing the build fails with:
 
-Xcode 27's JSON project format has no optional-resource attribute. A permanent file reference to a missing plist would fail the Copy Bundle Resources phase in CI. `LetterLens-iOS` is a synchronized folder (`kind: folder` in `project.xcproj`), so the file joins the LetterLens-iOS target on its own once it is present.
+```
+error: GoogleService-Info.plist is missing. Put it in LetterLens-iOS/ (it is gitignored); see README.
+```
+
+User script sandboxing is enabled (`ENABLE_USER_SCRIPT_SANDBOXING`). The phase declares the plist as an input so the sandbox can read it. It also declares the existing `LetterLens-iOS` directory and runs on every build. A missing plist is not a file the sandbox can grant by itself, and dependency analysis would otherwise stop the build with "Build input file cannot be found" before the script prints the message above. `test -f` needs to read the parent directory.
+
+There is no placeholder plist in the repo. Xcode 27's JSON project format has no optional-resource attribute, so the plist is not a permanent file reference. `LetterLens-iOS` is a synchronized folder (`kind: folder` in `project.xcproj`); once the real file is in that directory, the target copies it into the app.
+
+If a built app is still missing the plist, launch logs an error and skips `FirebaseApp.configure()`. Remote Config then stays on the bundled defaults.
 
 1. In the Firebase console, register the iOS app (`com.tade.LetterLens-iOS`) and download `GoogleService-Info.plist`.
 2. Put that file in `LetterLens-iOS/` (next to `LetterLens_iOSApp.swift`).
