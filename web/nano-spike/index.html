@@ -4,9 +4,10 @@
 pre{background:#f4f4f4;padding:12px;white-space:pre-wrap;border-radius:8px}button{font-size:16px;padding:10px 18px;margin:0 8px 8px 0}</style>
 <script src="./config.local.js"></script></head><body>
 <h1>LetterLens: Gemini Nano spike</h1>
-<p>On-device only (<code>ONLY_ON_DEVICE</code>). Nothing is sent to the cloud. Run spike checks the model. Run card test sends test letter 01 with the v1 card prompt and asks for JSON. Copy the report below into the room.</p>
+<p>On-device only (<code>ONLY_ON_DEVICE</code>). Nothing is sent to the cloud. Run spike checks the model. Run card test sends test letter 01 with the v1 card prompt and asks for JSON. Run card test (Chrome JSON mode) asks the Prompt API for the same card with a JSON schema. Copy the report below into the room.</p>
 <button id="run">Run spike</button>
 <button id="card">Run card test</button>
+<button id="card-chrome">Run card test (Chrome JSON mode)</button>
 <pre id="out">Not run yet.</pre>
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
@@ -47,10 +48,41 @@ LETTER:
 
 const REQUIRED_FIELDS = ["type", "sender_kind", "action", "deadline", "deadline_quote", "amount_quote", "watch_outs", "scam_signs", "no_action_needed"];
 
+// Plain strings and a boolean. No enums. Nullable v1 fields stay strings here;
+// the prompt still says to use null when the letter does not state them.
+const CARD_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    type: { type: "string" },
+    sender_kind: { type: "string" },
+    action: { type: "string" },
+    deadline: { type: "string" },
+    deadline_quote: { type: "string" },
+    amount_quote: { type: "string" },
+    watch_outs: { type: "array", items: { type: "string" } },
+    scam_signs: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          sign: { type: "string" },
+          quote: { type: "string" }
+        },
+        required: ["sign", "quote"]
+      }
+    },
+    no_action_needed: { type: "boolean" }
+  },
+  required: REQUIRED_FIELDS
+};
+
 const out = document.getElementById("out");
 const log = (k, v) => { out.textContent += `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}\n`; };
 const runButton = document.getElementById("run");
 const cardButton = document.getElementById("card");
+const cardChromeButton = document.getElementById("card-chrome");
 let firebaseApp = null;
 let appCheckStarted = false;
 
@@ -60,10 +92,34 @@ function formatProgress(loaded) {
   return `${Math.round(pct * 100) / 100}%`;
 }
 
+function collapseWs(value) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function quoteVerbatim(value) {
   if (value == null) return "null";
   if (typeof value !== "string" || value.length === 0) return "not a quote";
-  return LETTER.includes(value) ? "yes" : "no";
+  const quote = collapseWs(value);
+  if (!quote) return "not a quote";
+  return collapseWs(LETTER).includes(quote) ? "yes" : "no";
+}
+
+function stripOneFence(raw) {
+  let text = String(raw ?? "").trim();
+  let stripped = false;
+  if (text.startsWith("```json")) {
+    text = text.slice(7);
+    stripped = true;
+  } else if (text.startsWith("```")) {
+    text = text.slice(3);
+    stripped = true;
+  }
+  const trimmedEnd = text.trimEnd();
+  if (trimmedEnd.endsWith("```")) {
+    text = trimmedEnd.slice(0, -3);
+    stripped = true;
+  }
+  return { text: text.trim(), stripped };
 }
 
 function logQuoteFields(value, path) {
@@ -81,9 +137,11 @@ function logQuoteFields(value, path) {
 
 function logCard(raw) {
   log("Raw JSON", raw);
+  const unfenced = stripOneFence(raw);
+  log("Fence stripped", unfenced.stripped ? "yes" : "no");
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(unfenced.text);
     log("Parses", "yes");
   } catch (e) {
     log("Parses", "no");
@@ -180,9 +238,11 @@ async function prepare() {
 async function withBusy(work) {
   runButton.disabled = true;
   cardButton.disabled = true;
+  cardChromeButton.disabled = true;
   try { await work(); } finally {
     runButton.disabled = false;
     cardButton.disabled = false;
+    cardChromeButton.disabled = false;
   }
 }
 
@@ -216,6 +276,43 @@ cardButton.onclick = () => withBusy(async () => {
     log("Time to answer (ms)", Math.round(performance.now() - t0));
     log("Inference source", res.response.inferenceSource ?? "not reported by SDK");
     logCard(res.response.text());
+  } catch (e) { log("Error", `${e.code ?? ""} ${e.message ?? e}`); }
+});
+
+// firebase 13.3.0 (@firebase/ai 3.1.0) does not map generationConfig.responseMimeType
+// or responseSchema onto responseConstraint. ChromeAdapterImpl.generateContent only
+// forwards onDeviceParams.promptOptions to session.prompt().
+cardChromeButton.onclick = () => withBusy(async () => {
+  out.textContent = "";
+  try {
+    const { present, availability } = await readEnvironment();
+    if (!present || typeof self.LanguageModel === "undefined") {
+      log("LanguageModel", "missing");
+      log("Message", "LanguageModel is missing in this browser. Use Google Chrome.");
+      return;
+    }
+    if (!readyForOnDevice(present, availability)) return;
+    const prompt = CARD_PROMPT.replace("{ocr_text}", LETTER);
+    if (overLimit(prompt, "Prompt tokens (rough estimate, chars/4)")) return;
+    log("Schema", "v1 fields as JSON Schema, strings and boolean, no enums");
+    log("Output mode", "Chrome responseConstraint");
+    if (availability === "downloadable" || availability === "downloading") {
+      log("initializeDeviceModel", "starting (may download the model, can take minutes)");
+    }
+    const session = await LanguageModel.create({
+      monitor(m) {
+        m.addEventListener("downloadprogress", (e) => log("Download progress", formatProgress(e.loaded)));
+      }
+    });
+    try {
+      const t0 = performance.now();
+      const text = await session.prompt(prompt, { responseConstraint: CARD_SCHEMA });
+      log("Time to answer (ms)", Math.round(performance.now() - t0));
+      log("Inference source", "on_device");
+      logCard(text);
+    } finally {
+      if (session && typeof session.destroy === "function") session.destroy();
+    }
   } catch (e) { log("Error", `${e.code ?? ""} ${e.message ?? e}`); }
 });
 </script></body></html>
