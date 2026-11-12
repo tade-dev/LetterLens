@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>LetterLens Nano spike</title>
+<style>body{font:15px/1.5 -apple-system,system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 16px}
+pre{background:#f4f4f4;padding:12px;white-space:pre-wrap;border-radius:8px}button{font-size:16px;padding:10px 18px}</style>
+<script src="./config.local.js"></script></head><body>
+<h1>LetterLens: Gemini Nano spike</h1>
+<p>On-device only (<code>ONLY_ON_DEVICE</code>). Nothing is sent to the cloud. Click the button, then copy the report below into the room.</p>
+<button id="run">Run spike</button>
+<pre id="out">Not run yet.</pre>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app-check.js";
+import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-ai.js";
+
+const LETTER = "NORTHBRIDGE CITY COUNCIL\nCouncil Tax Office\nCivic Centre\n[COUNCIL ADDRESS]\n[COUNCIL POSTCODE]\n\nwww.northbridge.example                 Telephone: [PHONE]\n\n\nDate: 3 November 2026\n\nOur reference: [ACCOUNT REF]\nProperty: [ADDRESS LINE 1], [POSTCODE]\n\n[NAME]\n[ADDRESS LINE 1]\n[ADDRESS LINE 2]\n[POSTCODE]\n\n\nCouncil Tax - Reminder\n\n\nDear [NAME],\n\nI am writing because we have not received the Council Tax payment of\n\u00a3[AMOUNT] due on your account [ACCOUNT REF] for the property at\n[ADDRESS LINE 1], [POSTCODE].\n\nYour last payment was received on 15 October 2026. The outstanding\nbalance on the account is \u00a3[AMOUNT].\n\nYou must pay the outstanding balance of \u00a3[AMOUNT] by 1 December 2026.\n\nIf you have already paid, please ignore this reminder and accept our\nthanks. If you cannot pay in full, contact us before that date so we\ncan talk about a payment arrangement.\n\nIf you do not pay or get in touch, we may send you a final notice.\nAfter a final notice we may apply to the Magistrates' Court for a\nliability order. That can add costs to the amount you owe.\n\nHow to pay\n- Online at www.northbridge.example/counciltax, using reference [ACCOUNT REF]\n- By Direct Debit - call [PHONE] to set this up\n- At a PayPoint outlet, using reference [ACCOUNT REF]\n\nYours sincerely,\n\n[OFFICER NAME]\nCouncil Tax Manager\nNorthbridge City Council\n\n\nThis notice is a reminder issued under the Council Tax (Administration and\nEnforcement) Regulations 1992. If you have a query about your bill, Council\nTax Support or a discount, contact us on [PHONE] or write to the address at\nthe top of this letter.\n";
+const out = document.getElementById("out");
+const log = (k, v) => { out.textContent += `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}\n`; };
+
+document.getElementById("run").onclick = async () => {
+  out.textContent = "";
+  const ua = navigator.userAgentData ? (await navigator.userAgentData.getHighEntropyValues(["fullVersionList","platform"])) : null;
+  log("Chrome", ua ? ua.fullVersionList.map(b => `${b.brand} ${b.version}`).join(", ") : navigator.userAgent);
+  log("Platform", ua ? ua.platform : navigator.platform);
+  log("Prompt API present", typeof self.LanguageModel !== "undefined");
+  if (typeof self.LanguageModel !== "undefined") {
+    try { log("LanguageModel.availability()", await LanguageModel.availability()); } catch (e) { log("availability error", String(e)); }
+  }
+  if (!self.LL_CONFIG) { log("Config", "missing config.local.js, stopping"); return; }
+  try {
+    const app = initializeApp(self.LL_CONFIG);
+    const appCheck = initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("debug-only-placeholder"), isTokenAutoRefreshEnabled: false });
+    try { await getToken(appCheck); log("App Check", "debug token accepted"); } catch (e) { log("App Check error", String(e)); }
+    const ai = getAI(app, { backend: new GoogleAIBackend() });
+    const model = getGenerativeModel(ai, { mode: InferenceMode.ONLY_ON_DEVICE });
+    const estTokens = Math.ceil(LETTER.length / 4);
+    log("Letter tokens (rough estimate, chars/4)", `${estTokens} of 9216`);
+    if (estTokens > 9216) { log("Stop", "over the on-device limit"); return; }
+    log("initializeDeviceModel", "starting (may download the model, can take minutes)");
+    if (typeof model.initializeDeviceModel === "function") await model.initializeDeviceModel();
+    if (typeof self.LanguageModel !== "undefined") log("availability after init", await LanguageModel.availability());
+    const t0 = performance.now();
+    const res = await model.generateContent("Summarise this letter in two sentences, then state who sent it and any date or amount it mentions. Do not invent anything.\n\n" + LETTER);
+    log("Time to answer (ms)", Math.round(performance.now() - t0));
+    log("Inference source", res.response.inferenceSource ?? "not reported by SDK");
+    log("Answer", res.response.text());
+  } catch (e) { log("Error", `${e.code ?? ""} ${e.message ?? e}`); }
+};
+</script></body></html>
