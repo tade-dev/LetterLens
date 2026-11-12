@@ -52,7 +52,7 @@ enum LetterHarness {
             letters = try discover(in: input, textMode: textMode)
         } catch {
             print("LetterLens harness could not read \(inputPath): \(error.localizedDescription)")
-            writeSummary(
+            return writeSummary(
                 to: output,
                 input: inputPath,
                 output: outputPath,
@@ -62,12 +62,11 @@ enum LetterHarness {
                 letters: [],
                 harnessError: error.localizedDescription
             )
-            return 2
         }
 
         guard !letters.isEmpty else {
             print("LetterLens harness found no letters in \(inputPath).")
-            writeSummary(
+            return writeSummary(
                 to: output,
                 input: inputPath,
                 output: outputPath,
@@ -77,7 +76,6 @@ enum LetterHarness {
                 letters: [],
                 harnessError: "No numbered letters found."
             )
-            return 2
         }
 
         print("LetterLens harness: \(letters.count) letters, input \(textMode ? "txt" : "png").")
@@ -108,10 +106,11 @@ enum LetterHarness {
                         route: result.source.routeLabel,
                         model: result.modelVersion,
                         latencyMS: result.latencyMS,
+                        attempts: result.attempts,
                         error: nil
                     )
                 )
-                print("\(padded) \(result.source.routeLabel) \(result.modelVersion) \(result.latencyMS) ms")
+                print("\(padded) \(result.source.routeLabel) \(result.modelVersion) \(result.latencyMS) ms attempts \(result.attempts)")
             } catch let failure as CardReadFailure {
                 try? writeRaw(failure.rawResponses, to: output.appending(path: "\(padded).raw.json"))
                 rows.append(
@@ -119,13 +118,14 @@ enum LetterHarness {
                         n: letter.number,
                         file: letter.url.lastPathComponent,
                         inputKind: kind,
-                        route: nil,
+                        route: failure.routeLabel,
                         model: nil,
                         latencyMS: failure.latencyMS,
+                        attempts: failure.attempts,
                         error: failure.message
                     )
                 )
-                print("\(padded) error: \(failure.message)")
+                print("\(padded) error after \(failure.attempts) attempts: \(failure.message)")
             } catch {
                 rows.append(
                     HarnessLetterRow(
@@ -135,6 +135,7 @@ enum LetterHarness {
                         route: nil,
                         model: nil,
                         latencyMS: nil,
+                        attempts: 0,
                         error: error.localizedDescription
                     )
                 )
@@ -142,7 +143,7 @@ enum LetterHarness {
             }
         }
 
-        writeSummary(
+        let exitCode = writeSummary(
             to: output,
             input: inputPath,
             output: outputPath,
@@ -152,9 +153,8 @@ enum LetterHarness {
             letters: rows,
             harnessError: nil
         )
-        let failed = rows.contains { $0.error != nil }
         print("LetterLens harness wrote \(outputPath).")
-        return failed ? 1 : 0
+        return exitCode
     }
 
     private static func flag(_ value: String?) -> Bool {
@@ -222,11 +222,12 @@ enum LetterHarness {
 
     private static func writeRaw(_ responses: [ModelRawResponse], to url: URL) throws {
         let payload = RawFile(responses: responses.map {
-            RawPiece(chunk: $0.chunk, attempt: $0.attempt, text: $0.text)
+            RawPiece(chunk: $0.chunk, attempt: $0.attempt, text: $0.text, error: $0.error)
         })
         try writeJSON(payload, to: url)
     }
 
+    @discardableResult
     private static func writeSummary(
         to directory: URL,
         input: String,
@@ -236,7 +237,16 @@ enum LetterHarness {
         cloudConsent: Bool,
         letters: [HarnessLetterRow],
         harnessError: String?
-    ) {
+    ) -> Int32 {
+        let failed = letters.filter { $0.error != nil }.count
+        let exitCode: Int32
+        if harnessError != nil || letters.isEmpty {
+            exitCode = 2
+        } else if failed > 0 {
+            exitCode = 1
+        } else {
+            exitCode = 0
+        }
         let summary = HarnessSummary(
             startedAt: ISO8601DateFormatter().string(from: Date()),
             inputMode: textMode ? "txt" : "png",
@@ -245,9 +255,12 @@ enum LetterHarness {
             neverUpload: neverUpload,
             cloudConsent: cloudConsent,
             harnessError: harnessError,
+            failed: failed,
+            exitCode: Int(exitCode),
             letters: letters
         )
         try? writeJSON(summary, to: directory.appending(path: "run.json"))
+        return exitCode
     }
 
     private static func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
@@ -266,6 +279,8 @@ private struct HarnessSummary: Encodable {
     var neverUpload: Bool
     var cloudConsent: Bool
     var harnessError: String?
+    var failed: Int
+    var exitCode: Int
     var letters: [HarnessLetterRow]
 
     enum CodingKeys: String, CodingKey {
@@ -276,6 +291,8 @@ private struct HarnessSummary: Encodable {
         case neverUpload = "never_upload"
         case cloudConsent = "cloud_consent"
         case harnessError = "harness_error"
+        case failed
+        case exitCode = "exit_code"
         case letters
     }
 }
@@ -287,6 +304,7 @@ private struct HarnessLetterRow: Encodable {
     var route: String?
     var model: String?
     var latencyMS: Int?
+    var attempts: Int
     var error: String?
 
     enum CodingKeys: String, CodingKey {
@@ -296,6 +314,7 @@ private struct HarnessLetterRow: Encodable {
         case route
         case model
         case latencyMS = "latency_ms"
+        case attempts
         case error
     }
 }
@@ -308,6 +327,7 @@ private struct RawPiece: Encodable {
     var chunk: Int
     var attempt: Int
     var text: String
+    var error: String?
 }
 
 struct LetterHarnessView: View {

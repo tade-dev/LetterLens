@@ -76,7 +76,18 @@ xcrun simctl launch --console --terminate-running-process booted com.tade.Letter
 
 `simctl launch` passes each `SIMCTL_CHILD_` variable through to the app without the prefix. The same variables can be set on the Run action of a local scheme, with `-LLHarness` as an argument. Do not commit that scheme if it contains an App Check token.
 
-The process writes the run and then exits: `0` when every letter produced a card, `1` when a letter failed, `2` when the input or output path could not be used. `--console` returns that status.
+`xcrun simctl launch --console` always exits 0. The app still writes `exit_code` into `run.json` (`0` every letter produced a card, `1` a letter failed, `2` the input or output path could not be used). Use the script, which reads that file and exits with it:
+
+```bash
+scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run
+scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --txt
+scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --consent
+scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --never-upload
+```
+
+`--txt` reads the `.txt` files and skips OCR. `--consent` sets cloud consent so a repeated on-device guardrail block can fall back to redacted cloud text. `--never-upload` forces on-device. If `LL_APPCHECK_DEBUG_TOKEN` is set in the environment, the script forwards it to the app as `FIRAAppCheckDebugToken`. It does not read a token from a file and it does not print the token.
+
+An on-device guardrail or sensitive-content error is retried once on the same route. `run.json` records `attempts` and the final `route` for each letter, plus `failed` and `exit_code` for the run. `NN.raw.json` records each attempt, including a failed guardrail attempt.
 
 For each letter number `NN` the output folder contains:
 
@@ -84,10 +95,10 @@ For each letter number `NN` the output folder contains:
 |---|---|
 | `NN.ocr.txt` | OCR text, or the `.txt` letter when text mode is on |
 | `NN.txt` | The same text. `score.py` looks for this name first |
-| `NN.raw.json` | Raw model replies (`responses[].text`), including the one retry |
+| `NN.raw.json` | Raw model replies (`responses[].text`), plus `error` on a failed attempt |
 | `NN.validated.json` | Validated card |
 | `NN.json` | The same validated card. This is the file `score.py` reads first |
-| `run.json` | Per letter: `route` (`on-device` or `cloud`), `model`, `latency_ms`, `error` |
+| `run.json` | `failed`, `exit_code`, and per letter `route`, `model`, `latency_ms`, `attempts`, `error` |
 
 Score against the local answer key, from the test-kit directory (that directory is not in this repo):
 
@@ -95,7 +106,7 @@ Score against the local answer key, from the test-kit directory (that directory 
 python score.py --outputs /absolute/path/to/run --answers /absolute/path/to/answer_key.json --ocr /absolute/path/to/run
 ```
 
-Unit tests for the redactor, quote check, date parser, and card validator live in `LetterLens-iOSTests` and use Swift Testing. They use short synthetic strings, not the test-kit letters. Pick an iOS 26 simulator you have installed:
+Unit tests for the redactor, quote check, date parser, card validator, and guardrail classifier live in `LetterLens-iOSTests` and use Swift Testing. They use short synthetic strings, not the test-kit letters. Pick an iOS 26 simulator you have installed:
 
 ```bash
 xcodebuild test -scheme LetterLens-iOS -destination 'platform=iOS Simulator,name=iPhone 16,OS=26.0' -only-testing:LetterLens-iOSTests

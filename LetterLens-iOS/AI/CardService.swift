@@ -44,67 +44,117 @@ struct CardService {
             throw CardPipelineError.firebaseNotConfigured
         }
 
-        let sendsOffDevice = route != .onDeviceOnly
-        let redaction = sendsOffDevice ? redactor.redact(letter) : nil
-        let textForModel = redaction?.text ?? letter
         let ai = FirebaseAI.firebaseAI(backend: .googleAI())
-        let clock = ContinuousClock()
-        let started = clock.now
+        let started = ContinuousClock.now
         var rawResponses: [ModelRawResponse] = []
-        var versions: [String] = []
-        var cards: [LetterCard] = []
 
         do {
-            for (index, chunk) in CardPrompt.chunks(of: textForModel).enumerated() {
-                let session = makeSession(route: route, ai: ai)
-                let prompt = CardPrompt.filled(template: promptTemplate, ocrText: chunk)
-                let first = try await respond(session: session, prompt: prompt)
-                rawResponses.append(ModelRawResponse(chunk: index + 1, attempt: 1, text: first.text))
-                versions.append(first.modelVersion)
-
-                if let card = try? CardJSON.decodeModelText(first.text) {
-                    let restored = reinserted(card, map: redaction?.map)
-                    cards.append(CardValidator.validate(restored, ocrText: letter))
-                    continue
-                }
-
-                let second = try await respond(session: session, prompt: CardPrompt.jsonRetrySuffix)
-                rawResponses.append(ModelRawResponse(chunk: index + 1, attempt: 2, text: second.text))
-                versions.append(second.modelVersion)
-                guard let card = try? CardJSON.decodeModelText(second.text) else {
-                    throw CardReadFailure(
-                        message: CardPipelineError.invalidJSON.localizedDescription,
-                        rawResponses: rawResponses,
-                        latencyMS: Self.milliseconds(started.duration(to: clock.now))
-                    )
-                }
-                let restored = reinserted(card, map: redaction?.map)
-                cards.append(CardValidator.validate(restored, ocrText: letter))
-            }
+            return try await complete(
+                letter: letter,
+                route: route,
+                ai: ai,
+                started: started,
+                rawResponses: &rawResponses
+            )
         } catch let failure as CardReadFailure {
             throw failure
         } catch {
-            throw CardReadFailure(
-                message: error.localizedDescription,
-                rawResponses: rawResponses,
-                latencyMS: Self.milliseconds(started.duration(to: clock.now))
+            // One on-device retry already happened inside `send`. A second guardrail block
+            // may use the redacted cloud model only when the same consent gate as hybrid is open.
+            let cloudAllowed = router.cloudConsent && !router.neverUpload && route != .cloudPrimary
+            if cloudAllowed, ModelCallClassifier.isOnDeviceGuardrail(error) {
+                LetterLensLog.pipeline.notice(
+                    "On-device guardrail persisted after one retry. Sending redacted text to the cloud model."
+                )
+                do {
+                    return try await complete(
+                        letter: letter,
+                        route: .cloudPrimary,
+                        ai: ai,
+                        started: started,
+                        rawResponses: &rawResponses
+                    )
+                } catch let failure as CardReadFailure {
+                    throw failure
+                } catch {
+                    throw recordedFailure(error, route: .cloudPrimary, rawResponses: rawResponses, started: started)
+                }
+            }
+            throw recordedFailure(error, route: route, rawResponses: rawResponses, started: started)
+        }
+    }
+
+    private func complete(
+        letter: String,
+        route: ModelRoute,
+        ai: FirebaseAI,
+        started: ContinuousClock.Instant,
+        rawResponses: inout [ModelRawResponse]
+    ) async throws -> CardReadResult {
+        let sendsOffDevice = route != .onDeviceOnly
+        let redaction = sendsOffDevice ? redactor.redact(letter) : nil
+        let textForModel = redaction?.text ?? letter
+        var versions: [String] = []
+        var cards: [LetterCard] = []
+
+        for (index, chunk) in CardPrompt.chunks(of: textForModel).enumerated() {
+            var session: GenerativeModelSession?
+            let chunkNumber = index + 1
+            let prompt = CardPrompt.filled(template: promptTemplate, ocrText: chunk)
+            let first = try await send(
+                prompt: prompt,
+                route: route,
+                ai: ai,
+                chunk: chunkNumber,
+                session: &session,
+                rawResponses: &rawResponses
             )
+            versions.append(first.modelVersion)
+
+            if let card = try? CardJSON.decodeModelText(first.text) {
+                let restored = reinserted(card, map: redaction?.map)
+                cards.append(CardValidator.validate(restored, ocrText: letter))
+                continue
+            }
+
+            let second = try await send(
+                prompt: CardPrompt.jsonRetrySuffix,
+                route: route,
+                ai: ai,
+                chunk: chunkNumber,
+                session: &session,
+                rawResponses: &rawResponses
+            )
+            versions.append(second.modelVersion)
+            guard let card = try? CardJSON.decodeModelText(second.text) else {
+                throw CardReadFailure(
+                    message: CardPipelineError.invalidJSON.localizedDescription,
+                    rawResponses: rawResponses,
+                    latencyMS: Self.milliseconds(started.duration(to: ContinuousClock.now)),
+                    routeLabel: route.harnessLabel,
+                    attempts: rawResponses.count
+                )
+            }
+            let restored = reinserted(card, map: redaction?.map)
+            cards.append(CardValidator.validate(restored, ocrText: letter))
         }
 
         guard !cards.isEmpty else {
             throw CardReadFailure(
                 message: CardPipelineError.invalidJSON.localizedDescription,
                 rawResponses: rawResponses,
-                latencyMS: Self.milliseconds(started.duration(to: clock.now))
+                latencyMS: Self.milliseconds(started.duration(to: ContinuousClock.now)),
+                routeLabel: route.harnessLabel,
+                attempts: rawResponses.count
             )
         }
 
         let card = CardValidator.validate(CardValidator.merge(cards), ocrText: letter)
         let source = Self.source(versions: versions, route: route)
         let modelVersion = Self.reportedModel(versions: versions, source: source, route: route)
-        let latency = Self.milliseconds(started.duration(to: clock.now))
+        let latency = Self.milliseconds(started.duration(to: ContinuousClock.now))
         LetterLensLog.pipeline.notice(
-            "Card read \(source.routeLabel, privacy: .public) model \(modelVersion, privacy: .public) in \(latency, privacy: .public) ms. Details removed: \(redaction?.removedCount ?? 0, privacy: .public)."
+            "Card read \(source.routeLabel, privacy: .public) model \(modelVersion, privacy: .public) in \(latency, privacy: .public) ms. Attempts: \(rawResponses.count, privacy: .public). Details removed: \(redaction?.removedCount ?? 0, privacy: .public)."
         )
 
         return CardReadResult(
@@ -113,10 +163,78 @@ struct CardService {
             modelVersion: modelVersion,
             latencyMS: latency,
             route: route,
+            attempts: rawResponses.count,
             rawResponses: rawResponses,
             ocrText: letter,
             redactedText: redaction?.text,
             detailsRemoved: redaction?.removedCount ?? 0
+        )
+    }
+
+    /// Runs one prompt. A guardrail or sensitive-content error is retried once on a new
+    /// session of the same route. The second failure is recorded and rethrown.
+    private func send(
+        prompt: String,
+        route: ModelRoute,
+        ai: FirebaseAI,
+        chunk: Int,
+        session: inout GenerativeModelSession?,
+        rawResponses: inout [ModelRawResponse]
+    ) async throws -> (text: String, modelVersion: String) {
+        if session == nil {
+            session = makeSession(route: route, ai: ai)
+        }
+
+        do {
+            let response = try await respond(session: session!, prompt: prompt)
+            rawResponses.append(ModelRawResponse(chunk: chunk, attempt: rawResponses.count + 1, text: response.text))
+            return response
+        } catch {
+            guard route != .cloudPrimary, ModelCallClassifier.isOnDeviceGuardrail(error) else {
+                throw error
+            }
+            rawResponses.append(
+                ModelRawResponse(
+                    chunk: chunk,
+                    attempt: rawResponses.count + 1,
+                    text: "",
+                    error: error.localizedDescription
+                )
+            )
+            session = makeSession(route: route, ai: ai)
+            do {
+                let response = try await respond(session: session!, prompt: prompt)
+                rawResponses.append(ModelRawResponse(chunk: chunk, attempt: rawResponses.count + 1, text: response.text))
+                return response
+            } catch {
+                if ModelCallClassifier.isOnDeviceGuardrail(error) {
+                    rawResponses.append(
+                        ModelRawResponse(
+                            chunk: chunk,
+                            attempt: rawResponses.count + 1,
+                            text: "",
+                            error: error.localizedDescription
+                        )
+                    )
+                }
+                throw error
+            }
+        }
+    }
+
+    private func recordedFailure(
+        _ error: Error,
+        route: ModelRoute,
+        rawResponses: [ModelRawResponse],
+        started: ContinuousClock.Instant
+    ) -> CardReadFailure {
+        let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        return CardReadFailure(
+            message: message,
+            rawResponses: rawResponses,
+            latencyMS: Self.milliseconds(started.duration(to: ContinuousClock.now)),
+            routeLabel: route.harnessLabel,
+            attempts: rawResponses.count
         )
     }
 
@@ -229,6 +347,21 @@ struct CardReadFailure: LocalizedError {
     var message: String
     var rawResponses: [ModelRawResponse]
     var latencyMS: Int
+    /// Route of the call that failed. `on-device` or `cloud`.
+    var routeLabel: String?
+    var attempts: Int
 
     var errorDescription: String? { message }
+}
+
+extension ModelRoute {
+    /// Harness label for the route that was actually called.
+    var harnessLabel: String {
+        switch self {
+        case .onDeviceOnly, .hybridOnDeviceFirst:
+            "on-device"
+        case .cloudPrimary:
+            "cloud"
+        }
+    }
 }

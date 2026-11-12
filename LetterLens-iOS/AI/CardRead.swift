@@ -50,6 +50,8 @@ struct ModelRawResponse: Equatable {
     var chunk: Int
     var attempt: Int
     var text: String
+    /// Set when this attempt failed before the model returned text. Guardrail retries are recorded here.
+    var error: String? = nil
 }
 
 struct CardReadResult: Equatable {
@@ -58,6 +60,8 @@ struct CardReadResult: Equatable {
     var modelVersion: String
     var latencyMS: Int
     var route: ModelRoute
+    /// Model calls for this letter, including a guardrail retry and a cloud fallback.
+    var attempts: Int
     var rawResponses: [ModelRawResponse]
     var ocrText: String
     var redactedText: String?
