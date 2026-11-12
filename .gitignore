@@ -1,0 +1,9 @@
+# Firebase config: never commit (public repo)
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+.DS_Store

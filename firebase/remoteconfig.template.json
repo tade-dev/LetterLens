@@ -1,0 +1,39 @@
+{
+  "parameters": {
+    "card_prompt": {
+      "defaultValue": {
+        "value": "You read UK official letters and explain them in plain English.\nUse ONLY the letter text below. If something is not written in the letter, leave it null.\n\nReply with JSON only, matching exactly:\n{\n  \"type\": \"short label, e.g. council tax reminder\",\n  \"sender_kind\": \"council | hmrc | bank | benefits | school | utility | landlord | nhs | other\",\n  \"action\": \"what they want the reader to do, 1-2 short sentences, second person\",\n  \"deadline\": \"YYYY-MM-DD or null\",\n  \"deadline_quote\": \"the exact words from the letter that state the deadline, or null\",\n  \"amount_quote\": \"exact words stating an amount owed or due, or null\",\n  \"watch_outs\": [\"consequence or important condition, short sentence\", \"...\"],\n  \"scam_signs\": [{\"sign\": \"short description\", \"quote\": \"exact words or null\"}],\n  \"no_action_needed\": true or false\n}\n\nRules:\n- If no deadline is written in the letter, deadline and deadline_quote must be null. Do not guess.\n- Quotes must be copied word for word from the letter.\n- Never say a letter is safe or genuine.\n- Scam signs include: asking for a fee to release money, payment links not on the official domain, extreme urgency, requests for passwords or card details, mismatched sender details.\n\nLETTER:\n<<<\n{ocr_text}\n>>>"
+      },
+      "description": "On-device-first card prompt (docs/PROMPTS.md). Bump card_schema_version on change.",
+      "valueType": "STRING"
+    },
+    "plan_prompt": {
+      "defaultValue": {
+        "value": "You help someone in the UK respond to an official letter. Personal details are replaced with tokens like [NAME_1] or [REF_1]; keep the tokens exactly as written.\n\nLetter (redacted):\n<<<\n{redacted_text}\n>>>\n\nCard summary: {card_json}\nThe reader's note (may be empty): {user_note}\n\nReply with JSON only:\n{\n  \"steps\": [{\"title\": \"short imperative\", \"detail\": \"1-2 sentences\"}],\n  \"what_to_say\": \"a short script for a call or message, using tokens where details go\",\n  \"where_to_get_help\": [\"free, official or charity sources relevant to this letter\"]\n}\n\nRules: practical, calm, no legal or financial advice framing beyond general guidance. Max 4 steps. Never tell the user to ignore a letter."
+      },
+      "description": "Cloud plan prompt, redacted text only (docs/PROMPTS.md).",
+      "valueType": "STRING"
+    },
+    "card_schema_version": {
+      "defaultValue": {
+        "value": "1"
+      },
+      "description": "Bump on any prompt or schema change.",
+      "valueType": "NUMBER"
+    },
+    "card_model": {
+      "defaultValue": {
+        "value": "gemini-3.8-flash"
+      },
+      "description": "Cloud Gemini model for the card (secondary to on-device).",
+      "valueType": "STRING"
+    },
+    "plan_model": {
+      "defaultValue": {
+        "value": "gemini-3.8-flash"
+      },
+      "description": "Cloud Gemini model for the plan (primary).",
+      "valueType": "STRING"
+    }
+  }
+}
