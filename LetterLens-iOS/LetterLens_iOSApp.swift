@@ -10,6 +10,12 @@ import SwiftData
 
 @main
 struct LetterLens_iOSApp: App {
+    @State private var appConfig = AppConfig()
+
+    init() {
+        FirebaseBootstrap.configureIfPossible()
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -26,6 +32,10 @@ struct LetterLens_iOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(appConfig)
+                .task {
+                    await appConfig.fetchAndActivate()
+                }
         }
         .modelContainer(sharedModelContainer)
     }
