@@ -57,4 +57,19 @@ import Testing
         #expect(!QuoteChecker.contains("  ", in: letter))
         #expect(!QuoteChecker.contains("null", in: letter))
     }
+
+    @Test func aLowercasedQuoteIsReplacedWithTheOCRSpan() {
+        let ocr = "You must pay the processing fee by 18 November 2026 or your refund will be cancelled."
+        let restored = QuoteChecker.verbatimSpan(
+            of: "you must pay the processing fee by 18 November 2026",
+            in: ocr
+        )
+        #expect(restored == "You must pay the processing fee by 18 November 2026")
+    }
+
+    @Test func collapsedWhitespaceUsesTheOCRCharacters() {
+        let ocr = "To release your refund you must first pay."
+        let restored = QuoteChecker.verbatimSpan(of: "to  release\nyour refund", in: ocr)
+        #expect(restored == "To release your refund")
+    }
 }

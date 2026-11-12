@@ -153,8 +153,11 @@ struct CardService {
         let source = Self.source(versions: versions, route: route)
         let modelVersion = Self.reportedModel(versions: versions, source: source, route: route)
         let latency = Self.milliseconds(started.duration(to: ContinuousClock.now))
+        // Copy out of the inout buffer before the log. Logger interpolations are autoclosures.
+        let attemptCount = rawResponses.count
+        let detailsRemoved = redaction?.removedCount ?? 0
         LetterLensLog.pipeline.notice(
-            "Card read \(source.routeLabel, privacy: .public) model \(modelVersion, privacy: .public) in \(latency, privacy: .public) ms. Attempts: \(rawResponses.count, privacy: .public). Details removed: \(redaction?.removedCount ?? 0, privacy: .public)."
+            "Card read \(source.routeLabel, privacy: .public) model \(modelVersion, privacy: .public) in \(latency, privacy: .public) ms. Attempts: \(attemptCount, privacy: .public). Details removed: \(detailsRemoved, privacy: .public)."
         )
 
         return CardReadResult(
@@ -186,40 +189,42 @@ struct CardService {
         }
 
         do {
-            let response = try await respond(session: session!, prompt: prompt)
+            let response = try await respond(session: session!, prompt: prompt, route: route)
             rawResponses.append(ModelRawResponse(chunk: chunk, attempt: rawResponses.count + 1, text: response.text))
             return response
         } catch {
+            recordFailure(error, chunk: chunk, rawResponses: &rawResponses)
             guard route != .cloudPrimary, ModelCallClassifier.isOnDeviceGuardrail(error) else {
                 throw error
             }
-            rawResponses.append(
-                ModelRawResponse(
-                    chunk: chunk,
-                    attempt: rawResponses.count + 1,
-                    text: "",
-                    error: error.localizedDescription
-                )
-            )
             session = makeSession(route: route, ai: ai)
             do {
-                let response = try await respond(session: session!, prompt: prompt)
+                let response = try await respond(session: session!, prompt: prompt, route: route)
                 rawResponses.append(ModelRawResponse(chunk: chunk, attempt: rawResponses.count + 1, text: response.text))
                 return response
             } catch {
-                if ModelCallClassifier.isOnDeviceGuardrail(error) {
-                    rawResponses.append(
-                        ModelRawResponse(
-                            chunk: chunk,
-                            attempt: rawResponses.count + 1,
-                            text: "",
-                            error: error.localizedDescription
-                        )
-                    )
-                }
+                recordFailure(error, chunk: chunk, rawResponses: &rawResponses)
                 throw error
             }
         }
+    }
+
+    /// Counts the attempt, then logs only the underlying domain and code.
+    private func recordFailure(
+        _ error: Error,
+        chunk: Int,
+        rawResponses: inout [ModelRawResponse]
+    ) {
+        let diagnostic = ModelCallClassifier.diagnostic(error)
+        let domain = diagnostic.domain
+        let code = diagnostic.code
+        let attempt = rawResponses.count + 1
+        LetterLensLog.pipeline.error(
+            "Model call failed domain \(domain, privacy: .public) code \(code, privacy: .public) attempt \(attempt, privacy: .public)"
+        )
+        rawResponses.append(
+            ModelRawResponse(chunk: chunk, attempt: attempt, text: "", error: "\(domain) error \(code)")
+        )
     }
 
     private func recordedFailure(
@@ -254,14 +259,54 @@ struct CardService {
         }
     }
 
+    /// On-device calls are cut off well under the ~190s hangs seen in the 15-letter run.
+    static let onDeviceTimeoutSeconds = 60
+
+    private struct ModelReply: Sendable {
+        var text: String
+        var modelVersion: String
+    }
+
     private func respond(
         session: GenerativeModelSession,
-        prompt: String
+        prompt: String,
+        route: ModelRoute
     ) async throws -> (text: String, modelVersion: String) {
+        if route == .cloudPrimary {
+            let reply = try await readResponse(session: session, prompt: prompt)
+            return (reply.text, reply.modelVersion)
+        }
+        let responseTask = Task { @MainActor () -> ModelReply in
+            try await self.readResponse(session: session, prompt: prompt)
+        }
+        let timeoutTask = Task { @MainActor () -> ModelReply in
+            try await Task.sleep(for: .seconds(Self.onDeviceTimeoutSeconds))
+            throw OnDeviceCallTimeout(seconds: Self.onDeviceTimeoutSeconds)
+        }
+        let reply = try await withThrowingTaskGroup(of: ModelReply.self) { group in
+            group.addTask { try await responseTask.value }
+            group.addTask { try await timeoutTask.value }
+            defer {
+                group.cancelAll()
+                responseTask.cancel()
+                timeoutTask.cancel()
+            }
+            guard let value = try await group.next() else {
+                throw OnDeviceCallTimeout(seconds: Self.onDeviceTimeoutSeconds)
+            }
+            return value
+        }
+        return (reply.text, reply.modelVersion)
+    }
+
+    private func readResponse(
+        session: GenerativeModelSession,
+        prompt: String
+    ) async throws -> ModelReply {
         let response = try await session.respond(to: prompt, options: generationOptions)
         let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw CardPipelineError.emptyModelResponse }
-        return (text, response.rawResponse.modelVersion)
+        return ModelReply(text: text, modelVersion: response.rawResponse.modelVersion)
     }
 
     /// Both sides are set so whichever model the session actually runs stays at 0.1.

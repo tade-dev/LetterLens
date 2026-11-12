@@ -85,7 +85,7 @@ scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --consent
 scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --never-upload
 ```
 
-`--txt` reads the `.txt` files and skips OCR. `--consent` sets cloud consent so a repeated on-device guardrail block can fall back to redacted cloud text. `--never-upload` forces on-device. If `LL_APPCHECK_DEBUG_TOKEN` is set in the environment, the script forwards it to the app as `FIRAAppCheckDebugToken`. It does not read a token from a file and it does not print the token.
+`--txt` reads the `.txt` files and skips OCR. `--consent` sets cloud consent so a repeated on-device guardrail, internal error, or 60-second timeout can fall back to redacted cloud text. `--never-upload` forces on-device. `LL_SIM_UDID`, when set, chooses the Simulator. When it is unset the script uses `booted`. The script deletes `run.json` in the output directory before launch. If `LL_APPCHECK_DEBUG_TOKEN` is set in the environment, the script forwards it to the app as `FIRAAppCheckDebugToken`. It does not read a token from a file and it does not print the token.
 
 An on-device guardrail or sensitive-content error is retried once on the same route. `run.json` records `attempts` and the final `route` for each letter, plus `failed` and `exit_code` for the run. `NN.raw.json` records each attempt, including a failed guardrail attempt.
 

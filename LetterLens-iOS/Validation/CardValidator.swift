@@ -52,33 +52,25 @@ enum CardValidator {
     }
 
     private static func applyDeadline(_ card: inout LetterCard, ocrText: String) {
-        guard QuoteChecker.contains(card.deadlineQuote, in: ocrText),
-              let quote = LetterCard.nullish(card.deadlineQuote)
-        else {
+        guard let exact = QuoteChecker.verbatimSpan(of: card.deadlineQuote, in: ocrText) else {
             card.deadline = nil
             card.deadlineQuote = nil
             return
         }
 
-        guard let parsed = UKDateParser.firstDate(in: quote) else {
+        guard let parsed = UKDateParser.firstDate(in: exact) else {
             // "within 14 days" and any other quote with no calendar date.
             card.deadline = nil
             card.deadlineQuote = nil
             return
         }
 
-        card.deadlineQuote = quote
+        card.deadlineQuote = exact
         card.deadline = parsed
     }
 
     private static func applyAmount(_ card: inout LetterCard, ocrText: String) {
-        guard QuoteChecker.contains(card.amountQuote, in: ocrText),
-              let quote = LetterCard.nullish(card.amountQuote)
-        else {
-            card.amountQuote = nil
-            return
-        }
-        card.amountQuote = quote
+        card.amountQuote = QuoteChecker.verbatimSpan(of: card.amountQuote, in: ocrText)
     }
 
     /// A sign with no quote is structural ("no reference number") and is kept.
@@ -88,13 +80,12 @@ enum CardValidator {
         sign.sign = SafetyCopy.cleaned(sign.sign)
         guard !sign.sign.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
-        let quote = LetterCard.nullish(sign.quote)
-        if quote == nil {
+        if LetterCard.nullish(sign.quote) == nil {
             sign.quote = nil
             return sign
         }
-        guard QuoteChecker.contains(quote, in: ocrText) else { return nil }
-        sign.quote = quote
+        guard let exact = QuoteChecker.verbatimSpan(of: sign.quote, in: ocrText) else { return nil }
+        sign.quote = exact
         return sign
     }
 

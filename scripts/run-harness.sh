@@ -5,6 +5,7 @@
 # Usage:
 #   scripts/run-harness.sh LETTERS_DIR OUTPUT_DIR [--txt] [--consent] [--never-upload]
 #
+# LL_SIM_UDID, when set, selects the Simulator. Otherwise the target is `booted`.
 # LL_APPCHECK_DEBUG_TOKEN, when set in the environment, is forwarded to the app as
 # FIRAAppCheckDebugToken. The script never reads that token from a file and never prints it.
 
@@ -55,6 +56,10 @@ fi
 mkdir -p "$OUTPUT_DIR"
 LETTERS_DIR="$(cd "$LETTERS_DIR" && pwd)"
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
+# A previous run's summary must not be treated as this launch's result.
+rm -f "$OUTPUT_DIR/run.json"
+
+SIM_UDID="${LL_SIM_UDID:-booted}"
 
 export SIMCTL_CHILD_LL_HARNESS_IN="$LETTERS_DIR"
 export SIMCTL_CHILD_LL_HARNESS_OUT="$OUTPUT_DIR"
@@ -90,7 +95,7 @@ if [[ "$TEXT_MODE" -eq 1 ]]; then
 fi
 
 set +e
-xcrun simctl launch --console --terminate-running-process booted "$BUNDLE_ID" "${LAUNCH_ARGS[@]}"
+xcrun simctl launch --console --terminate-running-process "$SIM_UDID" "$BUNDLE_ID" "${LAUNCH_ARGS[@]}"
 LAUNCH_STATUS=$?
 set -e
 

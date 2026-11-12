@@ -37,6 +37,18 @@ import Testing
         #expect(validated.deadlineQuote == "You must pay the outstanding balance of £42.50 by 1 December 2026.")
     }
 
+    @Test func aLowercasedDeadlineQuoteIsStoredAsTheOCRSpan() {
+        let ocr = "You must pay the processing fee by 18 November 2026 or your refund will be cancelled."
+        let card = sample(
+            deadline: "2026-11-01",
+            deadlineQuote: "you must pay the processing fee by 18 November 2026",
+            amountQuote: nil
+        )
+        let validated = CardValidator.validate(card, ocrText: ocr)
+        #expect(validated.deadlineQuote == "You must pay the processing fee by 18 November 2026")
+        #expect(validated.deadline == "2026-11-18")
+    }
+
     @Test func aRelativeQuoteDoesNotBecomeADate() {
         let card = sample(
             deadline: "2026-11-25",
