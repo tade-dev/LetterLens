@@ -25,7 +25,9 @@ struct LetterLens_iOSApp: App {
 
     var body: some Scene {
         WindowGroup {
+            // Clear Ink is light only. Asset colours are Any appearance.
             ContentView()
+                .preferredColorScheme(.light)
         }
         .modelContainer(sharedModelContainer)
     }
