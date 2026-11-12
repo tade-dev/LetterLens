@@ -7,6 +7,7 @@ import FirebaseCore
 import FirebaseRemoteConfig
 import Foundation
 import Observation
+import os
 
 /// Bundled and fetched copies of the shared Remote Config parameters.
 ///

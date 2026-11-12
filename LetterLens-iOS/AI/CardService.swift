@@ -1,0 +1,234 @@
+//
+//  CardService.swift
+//  LetterLens-iOS
+//
+
+import FirebaseAILogic
+import FirebaseCore
+import Foundation
+import os
+
+/// Reads a letter into a validated card through Firebase AI Logic.
+///
+/// On-device only uses `generativeModelSession(model: FirebaseAI.SystemLanguageModel.default)`.
+/// After cloud consent, the card uses `HybridModel(primary: system, secondary: cloudModel)`
+/// and the prompt contains redacted text, because a hybrid fallback can upload that prompt.
+/// Photos are never passed in. The image stays in OCR.
+///
+/// Structured output for hybrid inference is documented for Android and Web, not this iOS
+/// session API, so the model is asked for JSON and `CardValidator` checks it.
+struct CardService {
+    var promptTemplate: String
+    var cardModel: String
+    var router: ModelRouter
+    var redactor = Redactor()
+
+    func read(ocrText: String) async throws -> CardReadResult {
+        let letter = ocrText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !letter.isEmpty else { throw CardPipelineError.emptyOCR }
+        guard !promptTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CardPipelineError.emptyPrompt
+        }
+
+        let route = router.route(for: .card)
+        if route == .onDeviceOnly {
+            guard case .available = router.onDeviceAvailability else {
+                throw CardPipelineError.privateReadUnavailable(
+                    Self.availabilitySummary(router.onDeviceAvailability)
+                )
+            }
+        }
+
+        // `firebaseAI()` traps when Firebase was not configured. Check first.
+        guard FirebaseApp.app() != nil else {
+            throw CardPipelineError.firebaseNotConfigured
+        }
+
+        let sendsOffDevice = route != .onDeviceOnly
+        let redaction = sendsOffDevice ? redactor.redact(letter) : nil
+        let textForModel = redaction?.text ?? letter
+        let ai = FirebaseAI.firebaseAI(backend: .googleAI())
+        let clock = ContinuousClock()
+        let started = clock.now
+        var rawResponses: [ModelRawResponse] = []
+        var versions: [String] = []
+        var cards: [LetterCard] = []
+
+        do {
+            for (index, chunk) in CardPrompt.chunks(of: textForModel).enumerated() {
+                let session = makeSession(route: route, ai: ai)
+                let prompt = CardPrompt.filled(template: promptTemplate, ocrText: chunk)
+                let first = try await respond(session: session, prompt: prompt)
+                rawResponses.append(ModelRawResponse(chunk: index + 1, attempt: 1, text: first.text))
+                versions.append(first.modelVersion)
+
+                if let card = try? CardJSON.decodeModelText(first.text) {
+                    let restored = reinserted(card, map: redaction?.map)
+                    cards.append(CardValidator.validate(restored, ocrText: letter))
+                    continue
+                }
+
+                let second = try await respond(session: session, prompt: CardPrompt.jsonRetrySuffix)
+                rawResponses.append(ModelRawResponse(chunk: index + 1, attempt: 2, text: second.text))
+                versions.append(second.modelVersion)
+                guard let card = try? CardJSON.decodeModelText(second.text) else {
+                    throw CardReadFailure(
+                        message: CardPipelineError.invalidJSON.localizedDescription,
+                        rawResponses: rawResponses,
+                        latencyMS: Self.milliseconds(started.duration(to: clock.now))
+                    )
+                }
+                let restored = reinserted(card, map: redaction?.map)
+                cards.append(CardValidator.validate(restored, ocrText: letter))
+            }
+        } catch let failure as CardReadFailure {
+            throw failure
+        } catch {
+            throw CardReadFailure(
+                message: error.localizedDescription,
+                rawResponses: rawResponses,
+                latencyMS: Self.milliseconds(started.duration(to: clock.now))
+            )
+        }
+
+        guard !cards.isEmpty else {
+            throw CardReadFailure(
+                message: CardPipelineError.invalidJSON.localizedDescription,
+                rawResponses: rawResponses,
+                latencyMS: Self.milliseconds(started.duration(to: clock.now))
+            )
+        }
+
+        let card = CardValidator.validate(CardValidator.merge(cards), ocrText: letter)
+        let source = Self.source(versions: versions, route: route)
+        let modelVersion = Self.reportedModel(versions: versions, source: source, route: route)
+        let latency = Self.milliseconds(started.duration(to: clock.now))
+        LetterLensLog.pipeline.notice(
+            "Card read \(source.routeLabel, privacy: .public) model \(modelVersion, privacy: .public) in \(latency, privacy: .public) ms. Details removed: \(redaction?.removedCount ?? 0, privacy: .public)."
+        )
+
+        return CardReadResult(
+            card: card,
+            source: source,
+            modelVersion: modelVersion,
+            latencyMS: latency,
+            route: route,
+            rawResponses: rawResponses,
+            ocrText: letter,
+            redactedText: redaction?.text,
+            detailsRemoved: redaction?.removedCount ?? 0
+        )
+    }
+
+    /// On-device only does not construct a cloud model. Hybrid and cloud do.
+    private func makeSession(route: ModelRoute, ai: FirebaseAI) -> GenerativeModelSession {
+        let system = FirebaseAI.SystemLanguageModel.default
+        switch route {
+        case .onDeviceOnly:
+            return ai.generativeModelSession(model: system)
+        case .hybridOnDeviceFirst:
+            let cloud = ai.geminiModel(name: cardModel)
+            let hybrid = HybridModel(primary: system, secondary: cloud)
+            return ai.generativeModelSession(model: hybrid)
+        case .cloudPrimary:
+            let cloud = ai.geminiModel(name: cardModel)
+            return ai.generativeModelSession(model: cloud)
+        }
+    }
+
+    private func respond(
+        session: GenerativeModelSession,
+        prompt: String
+    ) async throws -> (text: String, modelVersion: String) {
+        let response = try await session.respond(to: prompt, options: generationOptions)
+        let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { throw CardPipelineError.emptyModelResponse }
+        return (text, response.rawResponse.modelVersion)
+    }
+
+    /// Both sides are set so whichever model the session actually runs stays at 0.1.
+    private var generationOptions: ResponseGenerationOptions {
+        .hybrid(
+            gemini: GenerationConfig(temperature: CardPrompt.temperature),
+            foundationModels: FirebaseAI.GenerationOptions(temperature: CardPrompt.onDeviceTemperature)
+        )
+    }
+
+    private func reinserted(_ card: LetterCard, map: RedactionMap?) -> LetterCard {
+        guard let map, map.removedCount > 0 else { return card }
+        var card = card
+        card.type = map.reinsert(into: card.type)
+        card.senderKind = map.reinsert(into: card.senderKind)
+        card.action = map.reinsert(into: card.action)
+        if let deadline = card.deadline {
+            card.deadline = map.reinsert(into: deadline)
+        }
+        if let deadlineQuote = card.deadlineQuote {
+            card.deadlineQuote = map.reinsert(into: deadlineQuote)
+        }
+        if let amountQuote = card.amountQuote {
+            card.amountQuote = map.reinsert(into: amountQuote)
+        }
+        card.watchOuts = card.watchOuts.map { map.reinsert(into: $0) }
+        card.scamSigns = card.scamSigns.map { sign in
+            var sign = sign
+            sign.sign = map.reinsert(into: sign.sign)
+            if let quote = sign.quote {
+                sign.quote = map.reinsert(into: quote)
+            }
+            return sign
+        }
+        return card
+    }
+
+    private static func source(versions: [String], route: ModelRoute) -> CardReadSource {
+        let resolved = versions.map { CardReadSource.resolve(modelVersion: $0, route: route) }
+        if resolved.contains(.cloud) { return .cloud }
+        return resolved.last ?? CardReadSource.resolve(modelVersion: "", route: route)
+    }
+
+    private static func reportedModel(versions: [String], source: CardReadSource, route: ModelRoute) -> String {
+        let matching = versions.last {
+            CardReadSource.resolve(modelVersion: $0, route: route) == source
+        }
+        return matching ?? versions.last ?? CardReadSource.unknownModelVersion
+    }
+
+    private static func milliseconds(_ duration: Duration) -> Int {
+        let parts = duration.components
+        let fromSeconds = parts.seconds * 1000
+        let fromAttoseconds = parts.attoseconds / 1_000_000_000_000_000
+        return Int(max(Int64(0), fromSeconds + fromAttoseconds))
+    }
+
+    private static func availabilitySummary(
+        _ availability: FirebaseAI.SystemLanguageModel.Availability
+    ) -> String {
+        switch availability {
+        case .available:
+            return "available"
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible:
+                return "This iPhone cannot run Apple Intelligence."
+            case .appleIntelligenceNotEnabled:
+                return "Apple Intelligence is turned off."
+            case .modelNotReady:
+                return "The on-device model is still downloading."
+            case .unknown:
+                return "The on-device model is unavailable."
+            @unknown default:
+                return "The on-device model is unavailable."
+            }
+        }
+    }
+}
+
+/// A failed read that still carries the raw model text for the harness.
+struct CardReadFailure: LocalizedError {
+    var message: String
+    var rawResponses: [ModelRawResponse]
+    var latencyMS: Int
+
+    var errorDescription: String? { message }
+}
