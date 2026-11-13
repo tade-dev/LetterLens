@@ -2,7 +2,7 @@
   "parameters": {
     "card_prompt": {
       "defaultValue": {
-        "value": "You read UK official letters and explain them in plain English.\nUse ONLY the letter text below. If something is not written in the letter, leave it null.\n\nReply with JSON only, matching exactly:\n{\n  \"type\": \"short label, e.g. council tax reminder\",\n  \"sender_kind\": \"council | hmrc | bank | benefits | school | utility | landlord | nhs | other\",\n  \"action\": \"what they want the reader to do, 1-2 short sentences, second person\",\n  \"deadline\": \"YYYY-MM-DD or null\",\n  \"deadline_quote\": \"the exact words from the letter that state the deadline, or null\",\n  \"amount_quote\": \"exact words stating an amount owed or due, or null\",\n  \"watch_outs\": [\"consequence or important condition, short sentence\", \"...\"],\n  \"scam_signs\": [{\"sign\": \"short description\", \"quote\": \"exact words or null\"}],\n  \"no_action_needed\": true or false\n}\n\nRules:\n- If no deadline is written in the letter, deadline and deadline_quote must be null. Do not guess.\n- Quotes must be copied word for word from the letter.\n- Never say a letter is safe or genuine.\n- Scam signs include: asking for a fee to release money, payment links not on the official domain, extreme urgency, requests for passwords or card details, mismatched sender details.\n\nLETTER:\n<<<\n{ocr_text}\n>>>"
+        "value": "You read UK official letters and explain them in plain English.\nUse ONLY the letter text below. If something is not written in the letter, leave it null.\n\nReply with JSON only, matching exactly:\n{\n  \"type\": \"bill | reminder | final_notice | change_notice | information_request | consent_request | refund | information | appointment | penalty | other | not_sure\",\n  \"sender_kind\": \"council | hmrc | bank | benefits | school | utility | landlord | nhs | other | not_sure\",\n  \"action\": \"what they want the reader to do, 1-2 short sentences, second person\",\n  \"deadline\": \"YYYY-MM-DD or null\",\n  \"deadline_quote\": \"the exact words from the letter that state the deadline, or null\",\n  \"amount_quote\": \"exact words stating an amount owed or due, or null\",\n  \"watch_outs\": [\"consequence or important condition, short sentence\", \"...\"],\n  \"scam_signs\": [{\"sign\": \"short description\", \"quote\": \"exact words or null\"}],\n  \"no_action_needed\": true or false\n}\n\nRules:\n- type must be exactly one of the values listed above. sender_kind must be exactly one of the values listed above. If you are not sure, use not_sure.\n- If no deadline is written in the letter, deadline and deadline_quote must be null. Do not guess.\n- Quotes must be copied word for word from the letter.\n- Never say a letter is safe or genuine.\n- Scam signs include: asking for a fee to release money, payment links not on the official domain, extreme urgency, requests for passwords or card details, mismatched sender details.\n\nLETTER:\n<<<\n{ocr_text}\n>>>"
       },
       "description": "On-device-first card prompt (docs/PROMPTS.md). Bump card_schema_version on change.",
       "valueType": "STRING"
@@ -16,7 +16,7 @@
     },
     "card_schema_version": {
       "defaultValue": {
-        "value": "1"
+        "value": "2"
       },
       "description": "Bump on any prompt or schema change.",
       "valueType": "NUMBER"
@@ -33,6 +33,13 @@
         "value": "gemini-3.8-flash"
       },
       "description": "Cloud Gemini model for the plan (primary).",
+      "valueType": "STRING"
+    },
+    "fallback_model": {
+      "defaultValue": {
+        "value": "gemini-3.5-flash-lite"
+      },
+      "description": "Cloud Gemini model used after the first HTTP 429 from card_model. Same redacted text.",
       "valueType": "STRING"
     }
   }

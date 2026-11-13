@@ -74,15 +74,16 @@ struct ModelRouter: Equatable {
     }
 }
 
-// TODO: Create sessions only when `allowsCloudOrHybridSession(for:)` is true.
-// Do not construct `FirebaseAI.firebaseAI`, `geminiModel`, or `HybridModel` on the
-// `.onDeviceOnly` path. On-device-only mode uses `FirebaseAI.SystemLanguageModel`
-// alone, with no cloud fallback.
-//
-// Card, on-device first, per the Firebase AI Logic hybrid iOS docs
-// (https://firebase.google.com/docs/ai-logic/hybrid/ios/get-started):
+// `CardService` creates the session. The published on-device-only sample still
+// obtains it from `FirebaseAI.firebaseAI().generativeModelSession(model:)`.
+// That call does not create a `geminiModel` or a `HybridModel`.
+// https://firebase.google.com/docs/ai-logic/hybrid/ios/configuration-options
 //
 //   let ai = FirebaseAI.firebaseAI(backend: .googleAI())
+//   let session = ai.generativeModelSession(model: FirebaseAI.SystemLanguageModel.default)
+//
+// Hybrid, only after cloud consent, and only with redacted text:
+//
 //   let cloudModel = ai.geminiModel(name: cardModelName)
 //   let hybridModel = HybridModel(
 //       primary: FirebaseAI.SystemLanguageModel.default,
@@ -90,10 +91,6 @@ struct ModelRouter: Equatable {
 //   )
 //   let session = ai.generativeModelSession(model: hybridModel)
 //
-// `generativeModelSession(model:)` takes a `LanguageModelProvider`. If passing
-// `HybridModel` does not typecheck, use the provider form from the same docs:
-// `.hybridModel(primary:secondary:)`.
-//
-// Plan, after consent, is cloud-primary: cloud model as primary and
-// `FirebaseAI.SystemLanguageModel.default` as secondary. Still no photos and no
-// unredacted personal data.
+// `HybridModel` conforms to `LanguageModel`, which conforms to `LanguageModelProvider`.
+// Which model actually ran is `response.rawResponse.modelVersion`.
+// On-device is `apple-foundation-models-system-language-model`.

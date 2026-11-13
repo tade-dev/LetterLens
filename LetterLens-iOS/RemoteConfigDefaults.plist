@@ -8,8 +8,8 @@ Use ONLY the letter text below. If something is not written in the letter, leave
 
 Reply with JSON only, matching exactly:
 {
-  "type": "short label, e.g. council tax reminder",
-  "sender_kind": "council | hmrc | bank | benefits | school | utility | landlord | nhs | other",
+  "type": "bill | reminder | final_notice | change_notice | information_request | consent_request | refund | information | appointment | penalty | other | not_sure",
+  "sender_kind": "council | hmrc | bank | benefits | school | utility | landlord | nhs | other | not_sure",
   "action": "what they want the reader to do, 1-2 short sentences, second person",
   "deadline": "YYYY-MM-DD or null",
   "deadline_quote": "the exact words from the letter that state the deadline, or null",
@@ -20,6 +20,7 @@ Reply with JSON only, matching exactly:
 }
 
 Rules:
+- type must be exactly one of the values listed above. sender_kind must be exactly one of the values listed above. If you are not sure, use not_sure.
 - If no deadline is written in the letter, deadline and deadline_quote must be null. Do not guess.
 - Quotes must be copied word for word from the letter.
 - Never say a letter is safe or genuine.
@@ -49,10 +50,12 @@ Reply with JSON only:
 
 Rules: practical, calm, no legal or financial advice framing beyond general guidance. Max 4 steps. Never tell the user to ignore a letter.</string>
 	<key>card_schema_version</key>
-	<string>1</string>
+	<string>2</string>
 	<key>card_model</key>
 	<string>gemini-3.8-flash</string>
 	<key>plan_model</key>
 	<string>gemini-3.8-flash</string>
+	<key>fallback_model</key>
+	<string>gemini-3.5-flash-lite</string>
 </dict>
 </plist>
