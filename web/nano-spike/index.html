@@ -4,7 +4,7 @@
 pre{background:#f4f4f4;padding:12px;white-space:pre-wrap;border-radius:8px}button{font-size:16px;padding:10px 18px;margin:0 8px 8px 0}</style>
 <script src="./config.local.js"></script></head><body>
 <h1>LetterLens: Gemini Nano spike</h1>
-<p>On-device only (<code>ONLY_ON_DEVICE</code>). Nothing is sent to the cloud. Run spike checks the model. Run card test sends test letter 01 with the v1 card prompt and asks for JSON. Run card test (Chrome JSON mode) asks the Prompt API for the same card with a JSON schema. Copy the report below into the room.</p>
+<p>On-device only (<code>ONLY_ON_DEVICE</code>). Nothing is sent to the cloud. Run spike checks the model. Run card test sends test letter 01 with the v2 card prompt and asks for JSON. Run card test (Chrome JSON mode) is a comparison only: the same prompt, with <code>type</code> and <code>sender_kind</code> constrained by the Prompt API. Copy the report below into the room.</p>
 <button id="run">Run spike</button>
 <button id="card">Run card test</button>
 <button id="card-chrome">Run card test (Chrome JSON mode)</button>
@@ -16,16 +16,23 @@ import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode } from "https
 
 const LETTER = "NORTHBRIDGE CITY COUNCIL\nCouncil Tax Office\nCivic Centre\n[COUNCIL ADDRESS]\n[COUNCIL POSTCODE]\n\nwww.northbridge.example                 Telephone: [PHONE]\n\n\nDate: 3 November 2026\n\nOur reference: [ACCOUNT REF]\nProperty: [ADDRESS LINE 1], [POSTCODE]\n\n[NAME]\n[ADDRESS LINE 1]\n[ADDRESS LINE 2]\n[POSTCODE]\n\n\nCouncil Tax - Reminder\n\n\nDear [NAME],\n\nI am writing because we have not received the Council Tax payment of\n\u00a3[AMOUNT] due on your account [ACCOUNT REF] for the property at\n[ADDRESS LINE 1], [POSTCODE].\n\nYour last payment was received on 15 October 2026. The outstanding\nbalance on the account is \u00a3[AMOUNT].\n\nYou must pay the outstanding balance of \u00a3[AMOUNT] by 1 December 2026.\n\nIf you have already paid, please ignore this reminder and accept our\nthanks. If you cannot pay in full, contact us before that date so we\ncan talk about a payment arrangement.\n\nIf you do not pay or get in touch, we may send you a final notice.\nAfter a final notice we may apply to the Magistrates' Court for a\nliability order. That can add costs to the amount you owe.\n\nHow to pay\n- Online at www.northbridge.example/counciltax, using reference [ACCOUNT REF]\n- By Direct Debit - call [PHONE] to set this up\n- At a PayPoint outlet, using reference [ACCOUNT REF]\n\nYours sincerely,\n\n[OFFICER NAME]\nCouncil Tax Manager\nNorthbridge City Council\n\n\nThis notice is a reminder issued under the Council Tax (Administration and\nEnforcement) Regulations 1992. If you have a query about your bill, Council\nTax Support or a discount, contact us on [PHONE] or write to the address at\nthe top of this letter.\n";
 
-// v1 card prompt, copied from firebase/remoteconfig.template.json (card_schema_version 1).
+// sender_kind: handover docs/PROMPTS.md, plus not_sure.
+// type: agreed in the team room and approved by Tade on 13 Nov 2026.
+const SENDER_KINDS = ["council", "hmrc", "bank", "benefits", "school", "utility", "landlord", "nhs", "other", "not_sure"];
+const LETTER_TYPES = ["bill", "reminder", "final_notice", "change_notice", "information_request", "consent_request", "refund", "information", "appointment", "penalty", "other", "not_sure"];
+const CARD_SCHEMA_VERSION = 2;
+
+// Based on the v1 card_prompt in firebase/remoteconfig.template.json. That file is not edited here.
 // firebase-ai.js 13.3.0 does not send responseMimeType or responseSchema to the on-device
 // model when mode is set, so ONLY_ON_DEVICE uses this prompt alone.
 const CARD_PROMPT = `You read UK official letters and explain them in plain English.
 Use ONLY the letter text below. If something is not written in the letter, leave it null.
 
-Reply with JSON only, matching exactly:
+Reply with JSON only, matching card_schema_version ${CARD_SCHEMA_VERSION} exactly:
 {
-  "type": "short label, e.g. council tax reminder",
-  "sender_kind": "council | hmrc | bank | benefits | school | utility | landlord | nhs | other",
+  "card_schema_version": ${CARD_SCHEMA_VERSION},
+  "type": "one of: ${LETTER_TYPES.join(", ")}",
+  "sender_kind": "one of: ${SENDER_KINDS.join(", ")}",
   "action": "what they want the reader to do, 1-2 short sentences, second person",
   "deadline": "YYYY-MM-DD or null",
   "deadline_quote": "the exact words from the letter that state the deadline, or null",
@@ -36,6 +43,9 @@ Reply with JSON only, matching exactly:
 }
 
 Rules:
+- card_schema_version must be ${CARD_SCHEMA_VERSION}.
+- type must be exactly one of: ${LETTER_TYPES.join(", ")}. If you are not sure, answer not_sure.
+- sender_kind must be exactly one of: ${SENDER_KINDS.join(", ")}. If you are not sure, answer not_sure.
 - If no deadline is written in the letter, deadline and deadline_quote must be null. Do not guess.
 - Quotes must be copied word for word from the letter.
 - Never say a letter is safe or genuine.
@@ -46,16 +56,16 @@ LETTER:
 {ocr_text}
 >>>`;
 
-const REQUIRED_FIELDS = ["type", "sender_kind", "action", "deadline", "deadline_quote", "amount_quote", "watch_outs", "scam_signs", "no_action_needed"];
+const REQUIRED_FIELDS = ["card_schema_version", "type", "sender_kind", "action", "deadline", "deadline_quote", "amount_quote", "watch_outs", "scam_signs", "no_action_needed"];
 
-// Plain strings and a boolean. No enums. Nullable v1 fields stay strings here;
-// the prompt still says to use null when the letter does not state them.
+// Comparison-only Chrome Prompt API constraint. type and sender_kind are enums of the same lists.
 const CARD_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    type: { type: "string" },
-    sender_kind: { type: "string" },
+    card_schema_version: { type: "integer", enum: [CARD_SCHEMA_VERSION] },
+    type: { type: "string", enum: LETTER_TYPES },
+    sender_kind: { type: "string", enum: SENDER_KINDS },
     action: { type: "string" },
     deadline: { type: "string" },
     deadline_quote: { type: "string" },
@@ -156,6 +166,24 @@ function logCard(raw) {
     log(`field ${field}`, Object.hasOwn(parsed, field) ? "present" : "missing");
   }
   logQuoteFields(parsed, "");
+  const failures = [];
+  if (!exactListMember(parsed.type, LETTER_TYPES)) failures.push({ field: "type", value: parsed.type });
+  if (!exactListMember(parsed.sender_kind, SENDER_KINDS)) failures.push({ field: "sender_kind", value: parsed.sender_kind });
+  if (parsed.card_schema_version !== CARD_SCHEMA_VERSION) failures.push({ field: "card_schema_version", value: parsed.card_schema_version });
+  if (failures.length) {
+    log("Validation", "fail");
+    for (const failure of failures) {
+      const shown = JSON.stringify(failure.value);
+      log("Validation failed", `${failure.field} = ${shown === undefined ? "missing" : shown}`);
+    }
+    return;
+  }
+  log("Validation", "pass");
+  log("Validated output", JSON.stringify({ ...parsed, card_schema_version: CARD_SCHEMA_VERSION }, null, 2));
+}
+
+function exactListMember(value, allowed) {
+  return typeof value === "string" && allowed.includes(value);
 }
 
 async function readEnvironment() {
@@ -268,7 +296,7 @@ cardButton.onclick = () => withBusy(async () => {
     if (!model) return;
     const prompt = CARD_PROMPT.replace("{ocr_text}", LETTER);
     if (overLimit(prompt, "Prompt tokens (rough estimate, chars/4)")) return;
-    log("Schema", "v1 from firebase/remoteconfig.template.json card_prompt");
+    log("Schema", "card_schema_version 2");
     log("Output mode", "prompt only");
     await initDevice(model);
     const t0 = performance.now();
@@ -294,8 +322,8 @@ cardChromeButton.onclick = () => withBusy(async () => {
     if (!readyForOnDevice(present, availability)) return;
     const prompt = CARD_PROMPT.replace("{ocr_text}", LETTER);
     if (overLimit(prompt, "Prompt tokens (rough estimate, chars/4)")) return;
-    log("Schema", "v1 fields as JSON Schema, strings and boolean, no enums");
-    log("Output mode", "Chrome responseConstraint");
+    log("Schema", "card_schema_version 2, comparison only, type and sender_kind enums");
+    log("Output mode", "Chrome responseConstraint (comparison only)");
     if (availability === "downloadable" || availability === "downloading") {
       log("initializeDeviceModel", "starting (may download the model, can take minutes)");
     }
