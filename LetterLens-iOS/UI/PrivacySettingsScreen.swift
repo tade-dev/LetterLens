@@ -196,7 +196,7 @@ struct PrivacySettingsScreen: View {
                 confirmingDelete = true
             } label: {
                 Text("Delete all")
-                    .font(ClearInkMockFont.body14Semibold)
+                    .clearInkBody14(weight: .semibold)
                     .foregroundStyle(LLColor.warning)
                     .padding(.horizontal, LLSpace.block)
                     .frame(minHeight: LLSize.touchMin)
@@ -219,7 +219,7 @@ struct PrivacySettingsScreen: View {
         VStack(alignment: .leading, spacing: LLSpace.s) {
             LLSectionLabel(text: "How LetterLens works")
             Text("Your iPhone reads the letter with Apple's on-device model. If that isn't available, or you ask for a plan, Google Gemini is used through Firebase, only after you agree and with your details removed.")
-                .font(ClearInkMockFont.body14)
+                .clearInkBody14()
                 .foregroundStyle(LLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }

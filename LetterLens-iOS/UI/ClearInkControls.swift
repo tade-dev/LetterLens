@@ -9,9 +9,20 @@
 import SwiftUI
 
 /// 14pt is in the mockups and not in `LLFont` (footnote is 13, body is 15).
-enum ClearInkMockFont {
-    static let body14 = Font.system(size: 14, weight: .regular, relativeTo: .subheadline)
-    static let body14Semibold = Font.system(size: 14, weight: .semibold, relativeTo: .subheadline)
+/// `Font.system` has no `relativeTo`, so Dynamic Type comes from `ScaledMetric`.
+struct ClearInkBody14: ViewModifier {
+    var weight: Font.Weight = .regular
+    @ScaledMetric(relativeTo: .subheadline) private var labelSize: CGFloat = 14
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: labelSize, weight: weight))
+    }
+}
+
+extension View {
+    func clearInkBody14(weight: Font.Weight = .regular) -> some View {
+        modifier(ClearInkBody14(weight: weight))
+    }
 }
 
 struct ClearInkGlassButton: View {

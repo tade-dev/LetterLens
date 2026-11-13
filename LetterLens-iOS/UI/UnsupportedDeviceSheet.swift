@@ -166,7 +166,7 @@ struct UnsupportedDeviceSheet: View {
                 .modifier(ClearInkCheckBounce(trigger: appeared))
                 .accessibilityHidden(true)
             Text(text)
-                .font(ClearInkMockFont.body14)
+                .clearInkBody14()
                 .foregroundStyle(LLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

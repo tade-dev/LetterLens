@@ -80,7 +80,7 @@ struct WelcomeScreen: View {
                     .foregroundStyle(LLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(promise.detail)
-                    .font(ClearInkMockFont.body14)
+                    .clearInkBody14()
                     .foregroundStyle(LLColor.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
