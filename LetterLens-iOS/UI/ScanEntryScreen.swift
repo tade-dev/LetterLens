@@ -240,9 +240,4 @@ private struct PressFadeButtonStyle: ButtonStyle {
     ScanEntryScreen()
 }
 
-#Preview("03 Scan entry, Reduce Transparency") {
-    ScanEntryScreen()
-        .environment(\.accessibilityReduceTransparency, true)
-}
-
 #endif
