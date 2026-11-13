@@ -267,16 +267,8 @@ private struct ClearInkCheckBounce: ViewModifier {
     UnsupportedDevicePreview(prompt: .cloudFallback)
 }
 
-#Preview("07 Cloud fallback, Reduce Transparency") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, reduceTransparency: true)
-}
-
 #Preview("07 Cloud fallback, accessibility XXL") {
     UnsupportedDevicePreview(prompt: .cloudFallback, dynamicType: .accessibility5)
-}
-
-#Preview("07 Cloud fallback, Reduce Motion") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, reduceMotion: true)
 }
 
 #Preview("17 Keep it private") {
@@ -294,8 +286,6 @@ private struct ClearInkCheckBounce: ViewModifier {
 private struct UnsupportedDevicePreview: View {
     var prompt: UnsupportedDevicePrompt
     var keepPrivateCause: KeepPrivateCause = .neverUpload
-    var reduceTransparency = false
-    var reduceMotion = false
     var dynamicType: DynamicTypeSize? = nil
     @State private var showSheet = true
 
@@ -304,8 +294,6 @@ private struct UnsupportedDevicePreview: View {
             .ignoresSafeArea()
             .sheet(isPresented: $showSheet) {
                 UnsupportedDeviceSheet(prompt: prompt, keepPrivateCause: keepPrivateCause)
-                    .environment(\.accessibilityReduceTransparency, reduceTransparency)
-                    .environment(\.accessibilityReduceMotion, reduceMotion)
                     .dynamicTypeSize(dynamicType ?? .large)
             }
             .preferredColorScheme(.light)

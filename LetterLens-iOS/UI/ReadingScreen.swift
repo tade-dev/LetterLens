@@ -396,11 +396,6 @@ private struct ReadingActiveRing: View {
     ReadingPreviewHost(script: .cloudCarding)
 }
 
-#Preview("04 Reading, Reduce Motion") {
-    ReadingPreviewHost(script: .deviceMidOCR)
-        .environment(\.accessibilityReduceMotion, true)
-}
-
 #Preview("04 Reading, accessibility XXL") {
     ReadingPreviewHost(script: .cloudCarding)
         .dynamicTypeSize(.accessibility4)

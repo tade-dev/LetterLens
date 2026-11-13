@@ -163,16 +163,6 @@ private struct WelcomePromise: Identifiable {
     WelcomeScreen()
 }
 
-#Preview("01 Welcome, Reduce Transparency") {
-    WelcomeScreen()
-        .environment(\.accessibilityReduceTransparency, true)
-}
-
-#Preview("01 Welcome, Reduce Motion") {
-    WelcomeScreen()
-        .environment(\.accessibilityReduceMotion, true)
-}
-
 #Preview("01 Welcome, accessibility XXL") {
     WelcomeScreen()
         .dynamicTypeSize(.accessibility5)
