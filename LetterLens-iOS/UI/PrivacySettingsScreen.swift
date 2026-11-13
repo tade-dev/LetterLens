@@ -6,8 +6,9 @@
 //  Push it to get the system back button. Delete all confirms, then calls `onDeleteAll`.
 //  It does not touch SwiftData.
 //
-//  Toggles write `ll.neverUpload` and `ll.askBeforeCloud` through the model.
-//  Ask before is disabled while Never upload is on. Its stored value is kept.
+//  Toggles write `ll.neverUpload` and `ll.allowCloudFallback`.
+//  Allow cloud fallback is the only cloud switch. Ask-before is explanatory text.
+//  The cloud switch is disabled while Never upload is on. Its stored value is kept.
 
 import SwiftUI
 
@@ -33,7 +34,8 @@ struct PrivacySettingsScreen: View {
             }
             Section {
                 neverUploadRow.letterLensRow()
-                askBeforeRow.letterLensRow()
+                allowCloudFallbackRow.letterLensRow()
+                askBeforeExplanation.letterLensRow()
                 storedRow.letterLensRow()
             }
             Section {
@@ -66,7 +68,7 @@ struct PrivacySettingsScreen: View {
             Text("This removes every letter stored on this iPhone. Nothing is sent.")
         }
         .sensoryFeedback(.selection, trigger: preferences.neverUpload)
-        .sensoryFeedback(.selection, trigger: preferences.askBeforeCloud)
+        .sensoryFeedback(.selection, trigger: preferences.allowCloudFallback)
         .sensoryFeedback(.warning, trigger: deleteCount)
         .preferredColorScheme(.light)
         .onAppear { appeared = true }
@@ -142,16 +144,16 @@ struct PrivacySettingsScreen: View {
         .tint(LLColor.ink)
     }
 
-    private var askBeforeRow: some View {
+    private var allowCloudFallbackRow: some View {
         Toggle(isOn: Binding(
-            get: { preferences.askBeforeCloud },
-            set: { preferences.setAskBeforeCloud($0) }
+            get: { preferences.allowCloudFallback },
+            set: { preferences.setAllowCloudFallback($0) }
         )) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Ask before using the cloud")
+                Text("Allow cloud fallback")
                     .font(LLFont.body.weight(.semibold))
                     .foregroundStyle(LLColor.ink)
-                Text("Every time, with a preview of what's sent.")
+                Text("On, we ask before every letter.")
                     .font(.footnote)
                     .foregroundStyle(LLColor.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -159,6 +161,20 @@ struct PrivacySettingsScreen: View {
         }
         .tint(LLColor.ink)
         .disabled(preferences.neverUpload)
+    }
+
+    private var askBeforeExplanation: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Ask before using the cloud")
+                .font(LLFont.body.weight(.semibold))
+                .foregroundStyle(LLColor.ink)
+            Text("Every time, with a preview of what's sent.")
+                .font(.footnote)
+                .foregroundStyle(LLColor.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private var storedRow: some View {
@@ -262,14 +278,14 @@ private struct PrivacyPreview: View {
 
     init(
         neverUpload: Bool,
-        askBeforeCloud: Bool = true,
+        allowCloudFallback: Bool = true,
         availability: OnDeviceReadingAvailability = .available,
         count: Int = 5
     ) {
         _preferences = State(
             initialValue: PrivacySettingsModel(
                 neverUpload: neverUpload,
-                askBeforeCloud: askBeforeCloud,
+                allowCloudFallback: allowCloudFallback,
                 writesDefaults: false
             )
         )

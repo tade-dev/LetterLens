@@ -83,14 +83,12 @@ struct ClearInkGlassButton: View {
         case .prominent(let color):
             Button(action: action) { label }
                 .buttonStyle(.glassProminent)
-                .buttonBorderShape(.roundedRectangle)
                 .buttonSizing(.flexible)
                 .controlSize(.large)
                 .tint(color)
         case .regular:
             Button(action: action) { label }
                 .buttonStyle(.glass)
-                .buttonBorderShape(.roundedRectangle)
                 .buttonSizing(.flexible)
                 .controlSize(.large)
                 .tint(LLColor.ink)

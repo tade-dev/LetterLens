@@ -3,7 +3,8 @@
 //  LetterLens-iOS
 //
 //  Which sheet to show when this iPhone cannot read a letter on device.
-//  Screen 07 asks before a cloud read. State 17 stops when Never upload is on.
+//  `ll.allowCloudFallback` on means screen 07, and we ask on every letter.
+//  The switch off, or Never upload, means state 17. No cloud button, nothing is sent.
 //  No network call lives here. The view only offers the actions this type returns.
 
 import Foundation
@@ -11,13 +12,16 @@ import Foundation
 enum UnsupportedDeviceRoute: Equatable, Sendable {
     /// On-device reading can run. No sheet.
     case onDevice
-    /// Screen 07. The cloud button is the primary action.
+    /// Screen 07. Cloud fallback is on, so we ask before this letter.
     case cloudFallback
-    /// The person already chose "Don't ask again". No sheet, so no cloud button.
-    /// A later caller may read in the cloud without asking again.
-    case readInCloudWithoutAsking
     /// State 17. Explain and stop. No cloud button.
     case keepPrivate
+}
+
+/// Why state 17 is up. Never upload wins when both switches block the cloud.
+enum KeepPrivateCause: Equatable, Sendable {
+    case neverUpload
+    case cloudFallbackOff
 }
 
 enum UnsupportedDevicePrompt: Equatable, Sendable {
@@ -58,43 +62,66 @@ enum UnsupportedDeviceAction: Equatable, Hashable, Sendable {
 struct UnsupportedDeviceFlow: Equatable, Sendable {
     var onDeviceSupported: Bool
     var neverUpload: Bool
-    var askBeforeCloud: Bool
+    /// `ll.allowCloudFallback`. On means ask every time (screen 07).
+    var allowCloudFallback: Bool
 
     var route: UnsupportedDeviceRoute {
         if onDeviceSupported {
             return .onDevice
         }
-        if neverUpload {
+        if neverUpload || !allowCloudFallback {
             return .keepPrivate
         }
-        if askBeforeCloud {
-            return .cloudFallback
-        }
-        return .readInCloudWithoutAsking
+        return .cloudFallback
     }
 
     var prompt: UnsupportedDevicePrompt? {
         switch route {
         case .cloudFallback: .cloudFallback
         case .keepPrivate: .keepPrivate
-        case .onDevice, .readInCloudWithoutAsking: nil
+        case .onDevice: nil
         }
+    }
+
+    var keepPrivateCause: KeepPrivateCause? {
+        guard route == .keepPrivate else { return nil }
+        return neverUpload ? .neverUpload : .cloudFallbackOff
     }
 
     var actions: [UnsupportedDeviceAction] {
         prompt?.actions ?? []
     }
 
-    /// True only for screen 07. State 17 and "don't ask again" do not draw a cloud button.
+    /// True only for screen 07. State 17 draws no cloud button.
     var showsCloudButton: Bool {
         actions.contains(.readInCloud)
     }
+}
 
-    /// Whether a cloud read is still allowed for this letter. State 17 is not.
-    var allowsCloudRead: Bool {
-        switch route {
-        case .cloudFallback, .readInCloudWithoutAsking: true
-        case .onDevice, .keepPrivate: false
+/// What a button on sheet 07 or 17 decided. Drag-down is a decline only when this is empty.
+struct SheetChoiceRecord: Equatable, Sendable {
+    enum SendChoice: Equatable, Sendable {
+        case allowed
+        case declined
+    }
+
+    struct Resolution: Equatable, Sendable {
+        var choice: SendChoice
+        /// True when dismiss itself declined, because no button had been pressed.
+        var declinedByDismiss: Bool
+    }
+
+    private(set) var choice: SendChoice?
+
+    mutating func record(_ choice: SendChoice) {
+        self.choice = choice
+    }
+
+    mutating func resolveDismiss() -> Resolution {
+        if let choice {
+            return Resolution(choice: choice, declinedByDismiss: false)
         }
+        choice = .declined
+        return Resolution(choice: .declined, declinedByDismiss: true)
     }
 }

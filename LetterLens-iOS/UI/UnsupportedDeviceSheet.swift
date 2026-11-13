@@ -6,16 +6,14 @@
 //  glass sheet and the grabber; this view does not paint a sheet background.
 //  Buttons come only from `prompt.actions`, so state 17 has no cloud button.
 //
-//  "Don't ask again" is the inverse of `PrivacySettingsModel.askBeforeCloud`.
-//  Wire it with `model.setDontAskAgain`. Leave the sheet up if that value changes
-//  while it is open. Swiping the sheet away is "Not now" for screen 07, and
-//  "Keep it private and close" for state 17. This view does not send anything.
+//  A drag-down is a decline only when no button was pressed. `SheetChoiceRecord`
+//  keeps that decision. Allow, then dismiss, stays allowed. This view does not send anything.
 
 import SwiftUI
 
 struct UnsupportedDeviceSheet: View {
     var prompt: UnsupportedDevicePrompt
-    @Binding var dontAskAgain: Bool
+    var keepPrivateCause: KeepPrivateCause = .neverUpload
     var onReadInCloud: () -> Void = {}
     var onNotNow: () -> Void = {}
     var onKeepPrivate: () -> Void = {}
@@ -25,7 +23,9 @@ struct UnsupportedDeviceSheet: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Namespace private var actionGlass
     @State private var appeared = false
+    @State private var didAppear = false
     @State private var detent: PresentationDetent = .large
+    @State private var choice = SheetChoiceRecord()
     @State private var cloudTaps = 0
     @State private var notNowTaps = 0
     @State private var keepTaps = 0
@@ -36,14 +36,14 @@ struct UnsupportedDeviceSheet: View {
 
     init(
         prompt: UnsupportedDevicePrompt,
-        dontAskAgain: Binding<Bool> = .constant(false),
+        keepPrivateCause: KeepPrivateCause = .neverUpload,
         onReadInCloud: @escaping () -> Void = {},
         onNotNow: @escaping () -> Void = {},
         onKeepPrivate: @escaping () -> Void = {},
         onOpenPrivacySettings: @escaping () -> Void = {}
     ) {
         self.prompt = prompt
-        self._dontAskAgain = dontAskAgain
+        self.keepPrivateCause = keepPrivateCause
         self.onReadInCloud = onReadInCloud
         self.onNotNow = onNotNow
         self.onKeepPrivate = onKeepPrivate
@@ -60,8 +60,6 @@ struct UnsupportedDeviceSheet: View {
                     .clearInkEntrance(index: 1, appeared: appeared)
                 if prompt == .cloudFallback {
                     protections
-                    dontAskAgainToggle
-                        .clearInkEntrance(index: 4, appeared: appeared)
                 }
                 actions
                     .clearInkEntrance(index: 5, appeared: appeared)
@@ -79,9 +77,15 @@ struct UnsupportedDeviceSheet: View {
         .sensoryFeedback(.selection, trigger: notNowTaps)
         .sensoryFeedback(.impact, trigger: keepTaps)
         .sensoryFeedback(.selection, trigger: settingsTaps)
-        .sensoryFeedback(.selection, trigger: dontAskAgain)
         .preferredColorScheme(.light)
-        .onAppear { appeared = true }
+        .onAppear {
+            appeared = true
+            didAppear = true
+        }
+        .onDisappear {
+            guard didAppear else { return }
+            resolveDismiss()
+        }
     }
 
     private var heroForeground: Color {
@@ -133,7 +137,12 @@ struct UnsupportedDeviceSheet: View {
         case .cloudFallback:
             "On-device reading needs Apple Intelligence. We can read it in the cloud with Google's Gemini instead."
         case .keepPrivate:
-            "On-device reading needs Apple Intelligence. Never upload is on, so nothing will be sent."
+            switch keepPrivateCause {
+            case .neverUpload:
+                "On-device reading needs Apple Intelligence. Never upload is on, so nothing will be sent."
+            case .cloudFallbackOff:
+                "On-device reading needs Apple Intelligence. Cloud fallback is off, so nothing will be sent."
+            }
         }
     }
 
@@ -163,17 +172,6 @@ struct UnsupportedDeviceSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .clearInkEntrance(index: index + 2, appeared: appeared)
-    }
-
-    private var dontAskAgainToggle: some View {
-        Toggle(isOn: $dontAskAgain) {
-            Text("Don't ask again on this phone")
-                .font(LLFont.body.weight(.medium))
-                .foregroundStyle(LLColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .tint(LLColor.ink)
-        .frame(minHeight: LLSize.touchMin)
     }
 
     private var actions: some View {
@@ -212,24 +210,38 @@ struct UnsupportedDeviceSheet: View {
         switch action {
         case .readInCloud:
             ClearInkGlassButton("Read it in the cloud", kind: .prominent(LLColor.cloud)) {
+                choice.record(.allowed)
                 cloudTaps += 1
                 onReadInCloud()
             }
         case .notNow:
             ClearInkGlassButton("Not now, keep it on my phone", kind: .regular) {
+                choice.record(.declined)
                 notNowTaps += 1
                 onNotNow()
             }
         case .keepPrivateAndClose:
             ClearInkGlassButton("Keep it private and close", kind: .prominent(LLColor.ink)) {
+                choice.record(.declined)
                 keepTaps += 1
                 onKeepPrivate()
             }
         case .openPrivacySettings:
             ClearInkGlassButton("Open Privacy settings", kind: .regular) {
+                choice.record(.declined)
                 settingsTaps += 1
                 onOpenPrivacySettings()
             }
+        }
+    }
+
+    private func resolveDismiss() {
+        guard choice.resolveDismiss().declinedByDismiss else { return }
+        switch prompt {
+        case .cloudFallback:
+            onNotNow()
+        case .keepPrivate:
+            onKeepPrivate()
         }
     }
 }
@@ -252,36 +264,36 @@ private struct ClearInkCheckBounce: ViewModifier {
 #if DEBUG
 
 #Preview("07 Cloud fallback") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, dontAskAgain: false)
-}
-
-#Preview("07 Cloud fallback, don't ask again") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, dontAskAgain: true)
+    UnsupportedDevicePreview(prompt: .cloudFallback)
 }
 
 #Preview("07 Cloud fallback, Reduce Transparency") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, dontAskAgain: false, reduceTransparency: true)
+    UnsupportedDevicePreview(prompt: .cloudFallback, reduceTransparency: true)
 }
 
 #Preview("07 Cloud fallback, accessibility XXL") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, dontAskAgain: false, dynamicType: .accessibility5)
+    UnsupportedDevicePreview(prompt: .cloudFallback, dynamicType: .accessibility5)
 }
 
 #Preview("07 Cloud fallback, Reduce Motion") {
-    UnsupportedDevicePreview(prompt: .cloudFallback, dontAskAgain: false, reduceMotion: true)
+    UnsupportedDevicePreview(prompt: .cloudFallback, reduceMotion: true)
 }
 
 #Preview("17 Keep it private") {
-    UnsupportedDevicePreview(prompt: .keepPrivate, dontAskAgain: false)
+    UnsupportedDevicePreview(prompt: .keepPrivate, keepPrivateCause: .neverUpload)
+}
+
+#Preview("17 Cloud fallback off") {
+    UnsupportedDevicePreview(prompt: .keepPrivate, keepPrivateCause: .cloudFallbackOff)
 }
 
 #Preview("17 Keep it private, accessibility XXL") {
-    UnsupportedDevicePreview(prompt: .keepPrivate, dontAskAgain: false, dynamicType: .accessibility5)
+    UnsupportedDevicePreview(prompt: .keepPrivate, keepPrivateCause: .neverUpload, dynamicType: .accessibility5)
 }
 
 private struct UnsupportedDevicePreview: View {
     var prompt: UnsupportedDevicePrompt
-    @State var dontAskAgain: Bool
+    var keepPrivateCause: KeepPrivateCause = .neverUpload
     var reduceTransparency = false
     var reduceMotion = false
     var dynamicType: DynamicTypeSize? = nil
@@ -291,7 +303,7 @@ private struct UnsupportedDevicePreview: View {
         LLColor.ground
             .ignoresSafeArea()
             .sheet(isPresented: $showSheet) {
-                UnsupportedDeviceSheet(prompt: prompt, dontAskAgain: $dontAskAgain)
+                UnsupportedDeviceSheet(prompt: prompt, keepPrivateCause: keepPrivateCause)
                     .environment(\.accessibilityReduceTransparency, reduceTransparency)
                     .environment(\.accessibilityReduceMotion, reduceMotion)
                     .dynamicTypeSize(dynamicType ?? .large)

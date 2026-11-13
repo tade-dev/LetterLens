@@ -3,10 +3,9 @@
 //  LetterLens-iOS
 //
 //  Settings the Privacy screen and the cloud-fallback sheet share.
-//  `ll.neverUpload` is the key `DebugPipelineModel` writes on the scan-to-card branch.
-//  This screen does not write `ll.allowCloudFallback`. That flag means cloud fallback
-//  is permitted at all. "Ask before using the cloud" is a different choice, so it
-//  has its own key. Absent means ask (the mockup default).
+//  `ll.neverUpload` and `ll.allowCloudFallback` are the keys `DebugPipelineModel`
+//  writes on the scan-to-card branch. There is no separate ask-before key.
+//  Cloud fallback on means we ask before every letter. Off means state 17.
 //
 //  On-device status is an input. The pipeline reads
 //  `FirebaseAI.SystemLanguageModel.default.availability` and only switches on
@@ -17,9 +16,7 @@ import Observation
 
 enum PrivacyPreference {
     static let neverUpload = "ll.neverUpload"
-    /// Owned by the scan-to-card pipeline. Settings must not write it.
     static let allowCloudFallback = "ll.allowCloudFallback"
-    static let askBeforeCloud = "ll.askBeforeCloud"
 
     static let openSourceURL = URL(string: "https://github.com/tade-dev/LetterLens/blob/main/LICENSE")!
 
@@ -31,13 +28,12 @@ enum PrivacyPreference {
         defaults.set(value, forKey: neverUpload)
     }
 
-    static func readAskBeforeCloud(from defaults: UserDefaults = .standard) -> Bool {
-        guard defaults.object(forKey: askBeforeCloud) != nil else { return true }
-        return defaults.bool(forKey: askBeforeCloud)
+    static func readAllowCloudFallback(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: allowCloudFallback)
     }
 
-    static func writeAskBeforeCloud(_ value: Bool, to defaults: UserDefaults = .standard) {
-        defaults.set(value, forKey: askBeforeCloud)
+    static func writeAllowCloudFallback(_ value: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(value, forKey: allowCloudFallback)
     }
 }
 
@@ -91,12 +87,12 @@ final class PrivacySettingsModel {
     private let writesDefaults: Bool
 
     var neverUpload: Bool
-    var askBeforeCloud: Bool
+    var allowCloudFallback: Bool
 
     /// `writesDefaults` is false in previews so toggling does not touch the simulator store.
     init(
         neverUpload: Bool = false,
-        askBeforeCloud: Bool = true,
+        allowCloudFallback: Bool = false,
         defaults: UserDefaults = .standard,
         writesDefaults: Bool = true
     ) {
@@ -104,10 +100,10 @@ final class PrivacySettingsModel {
         self.writesDefaults = writesDefaults
         if writesDefaults {
             self.neverUpload = PrivacyPreference.readNeverUpload(from: defaults)
-            self.askBeforeCloud = PrivacyPreference.readAskBeforeCloud(from: defaults)
+            self.allowCloudFallback = PrivacyPreference.readAllowCloudFallback(from: defaults)
         } else {
             self.neverUpload = neverUpload
-            self.askBeforeCloud = askBeforeCloud
+            self.allowCloudFallback = allowCloudFallback
         }
     }
 
@@ -116,27 +112,22 @@ final class PrivacySettingsModel {
         commit()
     }
 
-    func setAskBeforeCloud(_ value: Bool) {
-        askBeforeCloud = value
+    func setAllowCloudFallback(_ value: Bool) {
+        allowCloudFallback = value
         commit()
-    }
-
-    /// Screen 07's "Don't ask again on this phone". Inverse of ask-before.
-    func setDontAskAgain(_ value: Bool) {
-        setAskBeforeCloud(!value)
     }
 
     func commit() {
         guard writesDefaults else { return }
         PrivacyPreference.writeNeverUpload(neverUpload, to: defaults)
-        PrivacyPreference.writeAskBeforeCloud(askBeforeCloud, to: defaults)
+        PrivacyPreference.writeAllowCloudFallback(allowCloudFallback, to: defaults)
     }
 
     func unsupportedFlow(onDevice availability: OnDeviceReadingAvailability) -> UnsupportedDeviceFlow {
         UnsupportedDeviceFlow(
             onDeviceSupported: availability == .available,
             neverUpload: neverUpload,
-            askBeforeCloud: askBeforeCloud
+            allowCloudFallback: allowCloudFallback
         )
     }
 }
