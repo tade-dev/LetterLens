@@ -69,6 +69,9 @@ enum ReadingMotion {
     static let tickSpringDuration: TimeInterval = 0.25
     static let slowLetterDelay: TimeInterval = 8
     static let slowLetterFade: TimeInterval = 0.2
+    /// Spring used only for the push from scan entry into reading.
+    static let pushSpringDuration: TimeInterval = 0.5
+    static let pushSpringBounce: Double = 0.2
     static let reduceMotionLine: CGFloat = 0.40
     static let reduceMotionOpacity: Double = 0.60
     static let trailLength: CGFloat = 24

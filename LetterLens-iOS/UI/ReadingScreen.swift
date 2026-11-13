@@ -65,6 +65,7 @@ struct ReadingScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.light)
         .sensoryFeedback(.error, trigger: progress.phase == .failed)
+        .sensoryFeedback(.success, trigger: didHandOff)
         .simultaneousGesture(TapGesture().onEnded {
             guard progress.phase == .validated else { return }
             requestHandoff()
@@ -129,13 +130,28 @@ struct ReadingScreen: View {
     }
 
     private var badge: some View {
-        Label(progress.badgeTitle, systemImage: progress.badgeSymbol)
+        HStack(spacing: LLSpace.s) {
+            badgeIcon
+            Text(progress.badgeTitle)
+                .font(LLFont.badge)
+        }
+        .foregroundStyle(pathColor)
+        .padding(.horizontal, LLSpace.m)
+        .padding(.vertical, LLSpace.s)
+        .background(pathTint, in: Capsule())
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var badgeIcon: some View {
+        let icon = Image(systemName: progress.badgeSymbol)
             .font(LLFont.badge)
-            .foregroundStyle(pathColor)
-            .padding(.horizontal, LLSpace.m)
-            .padding(.vertical, LLSpace.s)
-            .background(pathTint, in: Capsule())
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHidden(true)
+        if reduceMotion {
+            icon
+        } else {
+            icon.symbolEffect(.bounce, options: .nonRepeating)
+        }
     }
 
     private var displayedIndex: Int {
@@ -342,12 +358,7 @@ private struct ReadingStatusMark: View {
 
     var body: some View {
         ZStack {
-            Image(systemName: symbolName)
-                .resizable()
-                .scaledToFit()
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(symbolColor)
-                .contentTransition(.symbolEffect(.replace))
+            statusSymbol
                 .opacity(status == .ticked || status == .failed ? 1 : 0)
             if status == .pending {
                 Circle()
@@ -358,8 +369,29 @@ private struct ReadingStatusMark: View {
             }
         }
         .frame(width: side, height: side)
-        .animation(.spring(duration: ReadingMotion.tickSpringDuration, bounce: 0), value: status)
+        .animation(
+            reduceMotion
+                ? .easeOut(duration: ReadingMotion.reduceMotionCrossfade)
+                : .spring(duration: ReadingMotion.tickSpringDuration, bounce: 0),
+            value: status
+        )
         .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var statusSymbol: some View {
+        let symbol = Image(systemName: symbolName)
+            .resizable()
+            .scaledToFit()
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(symbolColor)
+        if reduceMotion {
+            symbol.contentTransition(.opacity)
+        } else {
+            symbol
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, options: .nonRepeating, value: status)
+        }
     }
 }
 
