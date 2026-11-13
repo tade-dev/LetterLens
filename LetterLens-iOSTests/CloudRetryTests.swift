@@ -84,10 +84,10 @@ private final class RecordingClock: RetryClock {
         #expect(calls == ["gemini-3.8-flash", "gemini-3.8-flash"])
     }
 
-    @Test func serviceUnavailableDoesNotSwitchModel() async {
+    @Test func first503SwitchesToTheFallbackModel() async {
         let clock = RecordingClock()
         var calls: [String] = []
-        _ = await CloudRetryRunner.run(
+        let outcome = await CloudRetryRunner.run(
             state: CloudRetryState(modelName: "gemini-3.8-flash", attemptsUsed: 0),
             fallbackModel: "gemini-3.5-flash-lite",
             jitterMilliseconds: { 0 },
@@ -99,8 +99,50 @@ private final class RecordingClock: RetryClock {
             }
             return CloudModelOutput(text: "ok", modelVersion: model)
         }
+        #expect(calls == ["gemini-3.8-flash", "gemini-3.5-flash-lite"])
+        #expect(clock.delays == [2_000])
+        #expect(outcome.records[0].backoffMilliseconds == 2_000)
+        #expect(outcome.records[0].model == "gemini-3.8-flash")
+        #expect(outcome.output?.modelVersion == "gemini-3.5-flash-lite")
+    }
+
+    @Test func a503WithAnEmptyFallbackStaysOnTheCardModel() async {
+        let clock = RecordingClock()
+        var calls: [String] = []
+        _ = await CloudRetryRunner.run(
+            state: CloudRetryState(modelName: "gemini-3.8-flash", attemptsUsed: 0),
+            fallbackModel: "  ",
+            jitterMilliseconds: { 0 },
+            sleeper: clock
+        ) { model in
+            calls.append(model)
+            if calls.count == 1 {
+                throw NSError(domain: ModelCallClassifier.backendErrorDomain, code: 503)
+            }
+            return CloudModelOutput(text: "ok", modelVersion: model)
+        }
         #expect(calls == ["gemini-3.8-flash", "gemini-3.8-flash"])
         #expect(clock.delays == [2_000])
+    }
+
+    @Test func mixed429And503StopAfterThreeAttempts() async {
+        let clock = RecordingClock()
+        var calls: [String] = []
+        let statuses = [429, 503, 429]
+        let outcome = await CloudRetryRunner.run(
+            state: CloudRetryState(modelName: "gemini-3.8-flash", attemptsUsed: 0),
+            fallbackModel: "gemini-3.5-flash-lite",
+            jitterMilliseconds: { 0 },
+            sleeper: clock
+        ) { model in
+            calls.append(model)
+            throw NSError(domain: ModelCallClassifier.backendErrorDomain, code: statuses[calls.count - 1])
+        }
+        #expect(calls == ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.5-flash-lite"])
+        #expect(clock.delays == [2_000, 5_000])
+        #expect(outcome.output == nil)
+        #expect(outcome.records.count == 3)
+        #expect(outcome.state.attemptsUsed == 3)
     }
 
     @Test func aClientErrorStopsWithoutSleeping() async {

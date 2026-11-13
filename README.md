@@ -37,7 +37,7 @@ The debug token is not in the repo. To pin one locally:
 
 ## Remote Config
 
-Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (2), `card_model` and `plan_model` (both `gemini-3.8-flash`), and `fallback_model` (`gemini-3.5-flash-lite`). `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties. Live Remote Config is deployed separately.
+Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (2), `card_model` and `plan_model` (both `gemini-3.8-flash`), and `fallback_model` (`gemini-3.5-flash-lite`). The first cloud HTTP 429 or 503 moves later attempts onto `fallback_model` when that name is set. An empty name skips the switch. A letter gets at most three cloud attempts; 400, 401, and 403 stop immediately. `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties. Live Remote Config is deployed separately.
 
 ## Scan to card
 
@@ -87,7 +87,7 @@ scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --never-u
 
 `--txt` reads the `.txt` files and skips OCR. `--consent` sets cloud consent so a repeated on-device guardrail, internal error, or 60-second timeout can fall back to redacted cloud text. `--never-upload` forces on-device. `LL_SIM_UDID`, when set, chooses the Simulator. When it is unset the script uses `booted`. The script deletes `run.json` in the output directory before launch. If `LL_APPCHECK_DEBUG_TOKEN` is set in the environment, the script forwards it to the app as `FIRAAppCheckDebugToken`. It does not read a token from a file and it does not print the token.
 
-An on-device guardrail or sensitive-content error is retried once on the same route. `run.json` records `attempts` and the final `route` for each letter, plus `failed` and `exit_code` for the run. `NN.raw.json` records each attempt, including a failed guardrail attempt.
+An on-device guardrail or sensitive-content error is retried once on the same route. A cloud HTTP 429 or 503 waits 2s, then 5s, then 12s, plus up to 250ms of jitter, or `Retry-After` capped at 60s. The first of those moves later attempts onto `fallback_model` when that name is set. An empty name skips the switch. A letter gets at most three cloud attempts. 400, 401, and 403 stop immediately. `run.json` records `attempts` and the final `route` for each letter, plus `failed` and `exit_code` for the run. `NN.raw.json` records each attempt, including `model` and `backoff_ms`.
 
 For each letter number `NN` the output folder contains:
 
@@ -95,7 +95,7 @@ For each letter number `NN` the output folder contains:
 |---|---|
 | `NN.ocr.txt` | OCR text, or the `.txt` letter when text mode is on |
 | `NN.txt` | The same text. `score.py` looks for this name first |
-| `NN.raw.json` | Raw model replies (`responses[].text`), plus `error` on a failed attempt |
+| `NN.raw.json` | Raw model replies (`responses[].text`), plus `error`, `model`, and `backoff_ms` on each attempt |
 | `NN.validated.json` | Validated card |
 | `NN.json` | The same validated card. This is the file `score.py` reads first |
 | `run.json` | `failed`, `exit_code`, and per letter `route`, `model`, `latency_ms`, `attempts`, `error` |

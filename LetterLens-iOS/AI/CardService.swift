@@ -186,7 +186,8 @@ struct CardService {
     }
 
     /// Runs one prompt. A guardrail or sensitive-content error is retried once on a new
-    /// session of the same route. Cloud 429 and 503 wait, then try again, at most three times.
+    /// session of the same route. Cloud 429 and 503 wait, then try `fallbackModel` when
+    /// that name is set, at most three times.
     private func send(
         prompt: String,
         route: ModelRoute,

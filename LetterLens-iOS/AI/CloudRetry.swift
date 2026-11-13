@@ -47,8 +47,8 @@ struct CloudRetryDecision: Equatable {
 enum CloudRetryPlanner {
     /// Decides the model and the wait after one failed cloud attempt.
     ///
-    /// The first HTTP 429 moves later attempts onto `fallbackModel` when that name is non-empty.
-    /// 503 stays on the current model. Any other 4xx stops. At most three cloud attempts are made.
+    /// The first HTTP 429 or 503 moves later attempts onto `fallbackModel` when that name is non-empty.
+    /// Later 429s and 503s stay on that model. Any other 4xx stops. At most three cloud attempts are made.
     static func decide(
         error: Error,
         attemptsSoFar: Int,
@@ -63,11 +63,9 @@ enum CloudRetryPlanner {
         }
 
         var nextModel = currentModel
-        if status == 429 {
-            let trimmed = fallbackModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                nextModel = trimmed
-            }
+        let trimmed = fallbackModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            nextModel = trimmed
         }
 
         let backoff = CloudBackoff.milliseconds(
