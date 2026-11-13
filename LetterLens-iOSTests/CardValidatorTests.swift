@@ -87,8 +87,8 @@ import Testing
 
     private func sample(deadline: String?, deadlineQuote: String?, amountQuote: String?) -> LetterCard {
         LetterCard(
-            type: "council tax reminder",
-            senderKind: "council",
+            type: .reminder,
+            senderKind: .council,
             action: "Pay the balance.",
             deadline: deadline,
             deadlineQuote: deadlineQuote,

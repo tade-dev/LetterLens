@@ -57,4 +57,28 @@ import Testing
         #expect(ModelCallClassifier.isOnDeviceGuardrail(OnDeviceCallTimeout(seconds: 60)))
         #expect(ModelCallClassifier.isOnDeviceGuardrail(URLError(.timedOut)))
     }
+
+    @Test func rateLimitAndUnavailableAreCloudRetries() {
+        let rateLimit = NSError(domain: "com.google.firebase.firebaseai.BackendError", code: 429)
+        let unavailable = NSError(domain: "com.google.firebase.firebaseai.BackendError", code: 503)
+        #expect(ModelCallClassifier.isCloudRetryable(rateLimit))
+        #expect(ModelCallClassifier.isCloudRetryable(unavailable))
+        #expect(ModelCallClassifier.httpStatus(rateLimit) == 429)
+    }
+
+    @Test func otherClientErrorsAreNotCloudRetries() {
+        for code in [400, 401, 403] {
+            let error = NSError(domain: "com.google.firebase.firebaseai.BackendError", code: code)
+            #expect(!ModelCallClassifier.isCloudRetryable(error))
+        }
+    }
+
+    @Test func retryAfterIsReadFromTheError() {
+        let error = NSError(
+            domain: "com.google.firebase.firebaseai.BackendError",
+            code: 429,
+            userInfo: ["Retry-After": "4"]
+        )
+        #expect(ModelCallClassifier.retryAfterSeconds(error) == 4)
+    }
 }

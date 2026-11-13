@@ -5,10 +5,105 @@
 
 import Foundation
 
+/// Closed letter type. Raw values are the schema strings.
+enum LetterType: String, Codable, Equatable, CaseIterable {
+    case bill
+    case reminder
+    case finalNotice = "final_notice"
+    case changeNotice = "change_notice"
+    case informationRequest = "information_request"
+    case consentRequest = "consent_request"
+    case refund
+    case information
+    case appointment
+    case penalty
+    case other
+    case notSure = "not_sure"
+
+    var title: String {
+        switch self {
+        case .bill: "Bill"
+        case .reminder: "Reminder"
+        case .finalNotice: "Final notice"
+        case .changeNotice: "Change notice"
+        case .informationRequest: "Information request"
+        case .consentRequest: "Consent request"
+        case .refund: "Refund"
+        case .information: "Information"
+        case .appointment: "Appointment"
+        case .penalty: "Penalty"
+        case .other: "Other"
+        case .notSure: "Not sure"
+        }
+    }
+
+    /// Exact raw value, otherwise a keyword match for a stored v1 label, otherwise `not_sure`.
+    static func decoded(from raw: String?) -> LetterType {
+        guard let raw else { return .notSure }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return .notSure }
+        if let exact = LetterType(rawValue: trimmed) { return exact }
+        let lowered = trimmed.lowercased().replacingOccurrences(of: "-", with: " ")
+        if lowered == "null" || lowered == "none" { return .notSure }
+        if let underscored = LetterType(rawValue: lowered.replacingOccurrences(of: " ", with: "_")) {
+            return underscored
+        }
+        if lowered.contains("final notice") { return .finalNotice }
+        if lowered.contains("information request") { return .informationRequest }
+        if lowered.contains("consent") { return .consentRequest }
+        if lowered.contains("change notice") || lowered.contains("terms change") || lowered.contains("price change") {
+            return .changeNotice
+        }
+        if lowered.contains("reminder") { return .reminder }
+        if lowered.contains("refund") { return .refund }
+        if lowered.contains("appointment") { return .appointment }
+        if lowered.contains("penalty") { return .penalty }
+        if lowered.contains("bill") { return .bill }
+        if lowered.contains("information") { return .information }
+        return .notSure
+    }
+}
+
+/// Closed sender. Raw values are the schema strings from the handover prompt, plus `not_sure`.
+enum SenderKind: String, Codable, Equatable, CaseIterable {
+    case council
+    case hmrc
+    case bank
+    case benefits
+    case school
+    case utility
+    case landlord
+    case nhs
+    case other
+    case notSure = "not_sure"
+
+    var title: String {
+        switch self {
+        case .council: "Council tax"
+        case .hmrc: "HMRC"
+        case .bank: "Bank"
+        case .benefits: "Benefits"
+        case .school: "School"
+        case .utility: "Utility"
+        case .landlord: "Landlord"
+        case .nhs: "NHS"
+        case .other: "Other"
+        case .notSure: "Not sure"
+        }
+    }
+
+    static func decoded(from raw: String?) -> SenderKind {
+        guard let raw else { return .notSure }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed.isEmpty || trimmed == "null" || trimmed == "none" { return .notSure }
+        return SenderKind(rawValue: trimmed) ?? .notSure
+    }
+}
+
 /// The card schema from the shared prompt. Field names match it exactly.
 struct LetterCard: Equatable {
-    var type: String
-    var senderKind: String
+    var type: LetterType
+    var senderKind: SenderKind
     var action: String
     var deadline: String?
     var deadlineQuote: String?
@@ -17,13 +112,14 @@ struct LetterCard: Equatable {
     var scamSigns: [ScamSign]
     var noActionNeeded: Bool
 
-    static let senderKinds: Set<String> = [
-        "council", "hmrc", "bank", "benefits", "school", "utility", "landlord", "nhs", "other",
-    ]
+    /// Built in the app. The model does not write this sentence.
+    var displayTitle: String {
+        "\(senderKind.title) · \(type.title)"
+    }
 
     static let empty = LetterCard(
-        type: "",
-        senderKind: "other",
+        type: .notSure,
+        senderKind: .notSure,
         action: "",
         deadline: nil,
         deadlineQuote: nil,
@@ -67,8 +163,8 @@ extension LetterCard: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        type = try container.decodeIfPresent(String.self, forKey: .type) ?? ""
-        senderKind = try container.decodeIfPresent(String.self, forKey: .senderKind) ?? "other"
+        type = LetterType.decoded(from: try container.decodeIfPresent(String.self, forKey: .type))
+        senderKind = SenderKind.decoded(from: try container.decodeIfPresent(String.self, forKey: .senderKind))
         action = try container.decodeIfPresent(String.self, forKey: .action) ?? ""
         deadline = Self.nullish(try container.decodeIfPresent(String.self, forKey: .deadline))
         deadlineQuote = Self.nullish(try container.decodeIfPresent(String.self, forKey: .deadlineQuote))
@@ -80,8 +176,8 @@ extension LetterCard: Codable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(type, forKey: .type)
-        try container.encode(senderKind, forKey: .senderKind)
+        try container.encode(type.rawValue, forKey: .type)
+        try container.encode(senderKind.rawValue, forKey: .senderKind)
         try container.encode(action, forKey: .action)
         try encodeNullish(deadline, forKey: .deadline, in: &container)
         try encodeNullish(deadlineQuote, forKey: .deadlineQuote, in: &container)

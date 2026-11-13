@@ -21,6 +21,7 @@ final class AppConfig {
     private(set) var cardSchemaVersion: Int
     private(set) var cardModel: String
     private(set) var planModel: String
+    private(set) var fallbackModel: String
 
     static let defaultsPlistName = "RemoteConfigDefaults"
 
@@ -29,10 +30,12 @@ final class AppConfig {
     static let cardSchemaVersionKey = "card_schema_version"
     static let cardModelKey = "card_model"
     static let planModelKey = "plan_model"
+    static let fallbackModelKey = "fallback_model"
 
     /// Used only when the bundled plist cannot be read. These match the template.
-    private static let fallbackSchemaVersion = 1
-    private static let fallbackModel = "gemini-3.8-flash"
+    private static let fallbackSchemaVersion = 2
+    private static let defaultCloudModel = "gemini-3.8-flash"
+    private static let defaultFallbackModel = "gemini-3.5-flash-lite"
 
     init() {
         let bundled = Self.loadBundledDefaults()
@@ -41,6 +44,7 @@ final class AppConfig {
         cardSchemaVersion = bundled.cardSchemaVersion
         cardModel = bundled.cardModel
         planModel = bundled.planModel
+        fallbackModel = bundled.fallbackModel
     }
 
     /// Fetches Remote Config and activates it. Keeps the bundled defaults if Firebase
@@ -97,6 +101,11 @@ final class AppConfig {
             self.planModel = planModel
         }
 
+        let fallbackModel = remoteConfig.configValue(forKey: Self.fallbackModelKey).stringValue
+        if !fallbackModel.isEmpty {
+            self.fallbackModel = fallbackModel
+        }
+
         let schemaVersion = remoteConfig.configValue(forKey: Self.cardSchemaVersionKey).numberValue.intValue
         if schemaVersion > 0 {
             cardSchemaVersion = schemaVersion
@@ -108,14 +117,16 @@ final class AppConfig {
         planPrompt: String,
         cardSchemaVersion: Int,
         cardModel: String,
-        planModel: String
+        planModel: String,
+        fallbackModel: String
     ) {
         let fallback = (
             cardPrompt: "",
             planPrompt: "",
             cardSchemaVersion: fallbackSchemaVersion,
-            cardModel: fallbackModel,
-            planModel: fallbackModel
+            cardModel: defaultCloudModel,
+            planModel: defaultCloudModel,
+            fallbackModel: defaultFallbackModel
         )
 
         guard
@@ -142,7 +153,8 @@ final class AppConfig {
             return fallback
         }
 
-        return (cardPrompt, planPrompt, cardSchemaVersion, cardModel, planModel)
+        let fallbackModel = (raw[fallbackModelKey] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? defaultFallbackModel
+        return (cardPrompt, planPrompt, cardSchemaVersion, cardModel, planModel, fallbackModel)
     }
 
     private static func schemaVersion(from raw: Any?) -> Int? {

@@ -52,6 +52,10 @@ struct ModelRawResponse: Equatable {
     var text: String
     /// Set when this attempt failed before the model returned text. Guardrail retries are recorded here.
     var error: String? = nil
+    /// Milliseconds waited after this attempt before the next cloud try. Absent when no wait followed.
+    var backoffMS: Int? = nil
+    /// Model name requested for this attempt.
+    var model: String? = nil
 }
 
 struct CardReadResult: Equatable {

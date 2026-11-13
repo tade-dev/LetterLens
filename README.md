@@ -37,7 +37,7 @@ The debug token is not in the repo. To pin one locally:
 
 ## Remote Config
 
-Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (1), `card_model` and `plan_model` (both `gemini-3.8-flash`). `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties.
+Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (2), `card_model` and `plan_model` (both `gemini-3.8-flash`), and `fallback_model` (`gemini-3.5-flash-lite`). `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties. Live Remote Config is deployed separately.
 
 ## Scan to card
 

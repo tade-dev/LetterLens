@@ -27,6 +27,81 @@ enum ModelCallClassifier {
         return (peeled.domain, peeled.code)
     }
 
+    static func summary(_ error: Error) -> String {
+        let diagnostic = diagnostic(error)
+        return "\(diagnostic.domain) error \(diagnostic.code)"
+    }
+
+    /// HTTP status from `BackendError`, including when it is nested under another error.
+    /// `com.google.firebase.firebaseai.BackendError error 429` is HTTP 429.
+    static func httpStatus(_ error: Error) -> Int? {
+        httpStatus(error, depth: 0)
+    }
+
+    /// Seconds from a `Retry-After` value on the error, when the SDK or the bridge exposes one.
+    static func retryAfterSeconds(_ error: Error) -> Double? {
+        retryAfterSeconds(error, depth: 0)
+    }
+
+    static func isCloudRetryable(_ error: Error) -> Bool {
+        guard let status = httpStatus(error) else { return false }
+        return status == 429 || status == 503
+    }
+
+    private static func httpStatus(_ error: Error, depth: Int) -> Int? {
+        if depth > 5 { return nil }
+        if let contentError = error as? GenerateContentError, case .internalError(let underlying) = contentError {
+            return httpStatus(underlying, depth: depth + 1)
+        }
+        let bridged = error as NSError
+        if isBackendErrorDomain(bridged.domain), bridged.code > 0 {
+            return bridged.code
+        }
+        if let underlying = bridged.userInfo[NSUnderlyingErrorKey] as? Error {
+            return httpStatus(underlying, depth: depth + 1)
+        }
+        return nil
+    }
+
+    private static func retryAfterSeconds(_ error: Error, depth: Int) -> Double? {
+        if depth > 5 { return nil }
+        let bridged = error as NSError
+        if let seconds = retryAfterSeconds(in: bridged.userInfo) {
+            return seconds
+        }
+        if let contentError = error as? GenerateContentError, case .internalError(let underlying) = contentError {
+            return retryAfterSeconds(underlying, depth: depth + 1)
+        }
+        if let underlying = bridged.userInfo[NSUnderlyingErrorKey] as? Error {
+            return retryAfterSeconds(underlying, depth: depth + 1)
+        }
+        return nil
+    }
+
+    private static func retryAfterSeconds(in userInfo: [String: Any]) -> Double? {
+        for (key, value) in userInfo where key.caseInsensitiveCompare("Retry-After") == .orderedSame {
+            switch value {
+            case let seconds as Int:
+                return Double(seconds)
+            case let seconds as Double:
+                return seconds
+            case let seconds as NSNumber:
+                return seconds.doubleValue
+            case let seconds as String:
+                return Double(seconds.trimmingCharacters(in: .whitespacesAndNewlines))
+            default:
+                return nil
+            }
+        }
+        return nil
+    }
+
+    static let backendErrorDomain = "com.google.firebase.firebaseai.BackendError"
+
+    private static func isBackendErrorDomain(_ domain: String) -> Bool {
+        domain == backendErrorDomain || domain.hasSuffix(".BackendError")
+    }
+
     private static func isOnDeviceGuardrail(_ error: Error, depth: Int) -> Bool {
         if depth > 5 { return false }
         if error is OnDeviceCallTimeout { return true }

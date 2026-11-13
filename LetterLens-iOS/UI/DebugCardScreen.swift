@@ -49,7 +49,7 @@ struct DebugCardScreen: View {
                             CardDetailView(record: record)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(record.card?.type.nilIfBlank ?? "Letter")
+                                Text(record.card?.displayTitle ?? "Letter")
                                 Text(record.source.badgeTitle)
                                     .font(.caption)
                                     .foregroundStyle(record.source == .onDevice ? Color.green : Color.blue)
@@ -187,8 +187,9 @@ struct CardDetailView: View {
                     LabeledContent("Details removed", value: "\(record.detailsRemoved)")
                 }
                 Section("Card") {
-                    labeled("Type", card.type)
-                    labeled("Sender", card.senderKind)
+                    labeled("Title", card.displayTitle)
+                    labeled("Type", card.type.rawValue)
+                    labeled("Sender", card.senderKind.rawValue)
                     labeled("Action", card.action)
                     labeled("Deadline", card.deadline ?? "None found")
                     labeled("Deadline quote", card.deadlineQuote ?? "None")
@@ -228,7 +229,7 @@ struct CardDetailView: View {
                     .textSelection(.enabled)
             }
         }
-        .navigationTitle(record.card?.type.nilIfBlank ?? "Letter")
+        .navigationTitle(record.card?.displayTitle ?? "Letter")
     }
 
     private func labeled(_ title: String, _ value: String) -> some View {
@@ -339,6 +340,7 @@ final class DebugPipelineModel {
         let service = CardService(
             promptTemplate: config.cardPrompt,
             cardModel: config.cardModel,
+            fallbackModel: config.fallbackModel,
             router: ModelRouter(neverUpload: neverUpload, cloudConsent: cloudConsent)
         )
         do {
@@ -364,13 +366,6 @@ struct ConsentPreview: Identifiable {
     let id = UUID()
     var redactedText: String
     var removedCount: Int
-}
-
-private extension String {
-    var nilIfBlank: String? {
-        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
 }
 
 #Preview {

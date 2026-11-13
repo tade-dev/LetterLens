@@ -82,6 +82,7 @@ enum LetterHarness {
         let service = CardService(
             promptTemplate: config.cardPrompt,
             cardModel: config.cardModel,
+            fallbackModel: config.fallbackModel,
             router: ModelRouter(neverUpload: neverUpload, cloudConsent: cloudConsent)
         )
 
@@ -222,7 +223,14 @@ enum LetterHarness {
 
     private static func writeRaw(_ responses: [ModelRawResponse], to url: URL) throws {
         let payload = RawFile(responses: responses.map {
-            RawPiece(chunk: $0.chunk, attempt: $0.attempt, text: $0.text, error: $0.error)
+            RawPiece(
+                chunk: $0.chunk,
+                attempt: $0.attempt,
+                text: $0.text,
+                error: $0.error,
+                backoffMS: $0.backoffMS,
+                model: $0.model
+            )
         })
         try writeJSON(payload, to: url)
     }
@@ -328,6 +336,17 @@ private struct RawPiece: Encodable {
     var attempt: Int
     var text: String
     var error: String?
+    var backoffMS: Int?
+    var model: String?
+
+    enum CodingKeys: String, CodingKey {
+        case chunk
+        case attempt
+        case text
+        case error
+        case backoffMS = "backoff_ms"
+        case model
+    }
 }
 
 struct LetterHarnessView: View {

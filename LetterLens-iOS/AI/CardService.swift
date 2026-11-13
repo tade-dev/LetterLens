@@ -20,8 +20,11 @@ import os
 struct CardService {
     var promptTemplate: String
     var cardModel: String
+    var fallbackModel: String
     var router: ModelRouter
     var redactor = Redactor()
+    var retryClock: any RetryClock = TaskRetryClock()
+    var jitterMilliseconds: () -> Int = { Int.random(in: 0...250) }
 
     func read(ocrText: String) async throws -> CardReadResult {
         let letter = ocrText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -96,6 +99,7 @@ struct CardService {
         let textForModel = redaction?.text ?? letter
         var versions: [String] = []
         var cards: [LetterCard] = []
+        var cloudState = CloudRetryState(modelName: cardModel, attemptsUsed: 0)
 
         for (index, chunk) in CardPrompt.chunks(of: textForModel).enumerated() {
             var session: GenerativeModelSession?
@@ -107,6 +111,7 @@ struct CardService {
                 ai: ai,
                 chunk: chunkNumber,
                 session: &session,
+                cloudState: &cloudState,
                 rawResponses: &rawResponses
             )
             versions.append(first.modelVersion)
@@ -117,12 +122,18 @@ struct CardService {
                 continue
             }
 
+            // Cloud attempts each start a new session, so the repair call repeats the letter.
+            // On-device keeps the same session and only sends the correction.
+            let retryPrompt = route == .cloudPrimary
+                ? prompt + "\n\n" + CardPrompt.jsonRetrySuffix
+                : CardPrompt.jsonRetrySuffix
             let second = try await send(
-                prompt: CardPrompt.jsonRetrySuffix,
+                prompt: retryPrompt,
                 route: route,
                 ai: ai,
                 chunk: chunkNumber,
                 session: &session,
+                cloudState: &cloudState,
                 rawResponses: &rawResponses
             )
             versions.append(second.modelVersion)
@@ -175,56 +186,124 @@ struct CardService {
     }
 
     /// Runs one prompt. A guardrail or sensitive-content error is retried once on a new
-    /// session of the same route. The second failure is recorded and rethrown.
+    /// session of the same route. Cloud 429 and 503 wait, then try again, at most three times.
     private func send(
         prompt: String,
         route: ModelRoute,
         ai: FirebaseAI,
         chunk: Int,
         session: inout GenerativeModelSession?,
+        cloudState: inout CloudRetryState,
         rawResponses: inout [ModelRawResponse]
     ) async throws -> (text: String, modelVersion: String) {
+        if route == .cloudPrimary {
+            return try await sendCloud(
+                prompt: prompt,
+                ai: ai,
+                chunk: chunk,
+                cloudState: &cloudState,
+                rawResponses: &rawResponses
+            )
+        }
+
         if session == nil {
             session = makeSession(route: route, ai: ai)
         }
 
         do {
             let response = try await respond(session: session!, prompt: prompt, route: route)
-            rawResponses.append(ModelRawResponse(chunk: chunk, attempt: rawResponses.count + 1, text: response.text))
+            let attempt = rawResponses.count + 1
+            rawResponses.append(
+                ModelRawResponse(
+                    chunk: chunk,
+                    attempt: attempt,
+                    text: response.text,
+                    model: response.modelVersion
+                )
+            )
             return response
         } catch {
-            recordFailure(error, chunk: chunk, rawResponses: &rawResponses)
-            guard route != .cloudPrimary, ModelCallClassifier.isOnDeviceGuardrail(error) else {
+            recordFailure(error, chunk: chunk, model: CardReadSource.onDeviceModelVersion, backoffMS: 0, rawResponses: &rawResponses)
+            guard ModelCallClassifier.isOnDeviceGuardrail(error) else {
                 throw error
             }
             session = makeSession(route: route, ai: ai)
             do {
                 let response = try await respond(session: session!, prompt: prompt, route: route)
-                rawResponses.append(ModelRawResponse(chunk: chunk, attempt: rawResponses.count + 1, text: response.text))
+                let attempt = rawResponses.count + 1
+                rawResponses.append(
+                    ModelRawResponse(
+                        chunk: chunk,
+                        attempt: attempt,
+                        text: response.text,
+                        model: response.modelVersion
+                    )
+                )
                 return response
             } catch {
-                recordFailure(error, chunk: chunk, rawResponses: &rawResponses)
+                recordFailure(error, chunk: chunk, model: CardReadSource.onDeviceModelVersion, backoffMS: 0, rawResponses: &rawResponses)
                 throw error
             }
         }
     }
 
-    /// Counts the attempt, then logs only the underlying domain and code.
-    private func recordFailure(
-        _ error: Error,
+    /// Cloud calls share one three-attempt budget for the letter. The prompt is already redacted.
+    private func sendCloud(
+        prompt: String,
+        ai: FirebaseAI,
+        chunk: Int,
+        cloudState: inout CloudRetryState,
+        rawResponses: inout [ModelRawResponse]
+    ) async throws -> (text: String, modelVersion: String) {
+        let outcome = await CloudRetryRunner.run(
+            state: cloudState,
+            fallbackModel: fallbackModel,
+            jitterMilliseconds: jitterMilliseconds,
+            sleeper: retryClock
+        ) { modelName in
+            let session = self.makeCloudSession(ai: ai, modelName: modelName)
+            let reply = try await self.readResponse(session: session, prompt: prompt)
+            return CloudModelOutput(text: reply.text, modelVersion: reply.modelVersion)
+        }
+        cloudState = outcome.state
+        appendCloudRecords(outcome.records, chunk: chunk, rawResponses: &rawResponses)
+        if let output = outcome.output {
+            let reported = output.modelVersion
+            let modelVersion = reported.isEmpty || reported == CardReadSource.unknownModelVersion
+                ? cloudState.modelName
+                : reported
+            return (output.text, modelVersion)
+        }
+        throw outcome.error ?? CardPipelineError.modelFailed("The cloud model did not return a card.")
+    }
+
+    private func appendCloudRecords(
+        _ records: [CloudAttemptRecord],
         chunk: Int,
         rawResponses: inout [ModelRawResponse]
     ) {
-        let diagnostic = ModelCallClassifier.diagnostic(error)
-        let domain = diagnostic.domain
-        let code = diagnostic.code
-        let attempt = rawResponses.count + 1
-        LetterLensLog.pipeline.error(
-            "Model call failed domain \(domain, privacy: .public) code \(code, privacy: .public) attempt \(attempt, privacy: .public)"
-        )
-        rawResponses.append(
-            ModelRawResponse(chunk: chunk, attempt: attempt, text: "", error: "\(domain) error \(code)")
-        )
+        let start = rawResponses.count
+        for (offset, record) in records.enumerated() {
+            let attempt = start + offset + 1
+            let model = record.model
+            let backoff = record.backoffMilliseconds
+            let errorText = record.error
+            if let errorText {
+                LetterLensLog.pipeline.error(
+                    "Cloud model call failed \(errorText, privacy: .public) backoff \(backoff, privacy: .public) ms attempt \(attempt, privacy: .public)"
+                )
+            }
+            rawResponses.append(
+                ModelRawResponse(
+                    chunk: chunk,
+                    attempt: attempt,
+                    text: record.text ?? "",
+                    error: errorText,
+                    backoffMS: errorText == nil ? nil : backoff,
+                    model: model
+                )
+            )
+        }
     }
 
     private func recordedFailure(
@@ -254,9 +333,41 @@ struct CardService {
             let hybrid = HybridModel(primary: system, secondary: cloud)
             return ai.generativeModelSession(model: hybrid)
         case .cloudPrimary:
-            let cloud = ai.geminiModel(name: cardModel)
-            return ai.generativeModelSession(model: cloud)
+            return makeCloudSession(ai: ai, modelName: cardModel)
         }
+    }
+
+    private func makeCloudSession(ai: FirebaseAI, modelName: String) -> GenerativeModelSession {
+        let cloud = ai.geminiModel(name: modelName)
+        return ai.generativeModelSession(model: cloud)
+    }
+
+    private func recordFailure(
+        _ error: Error,
+        chunk: Int,
+        model: String,
+        backoffMS: Int,
+        rawResponses: inout [ModelRawResponse]
+    ) {
+        let diagnostic = ModelCallClassifier.diagnostic(error)
+        let domain = diagnostic.domain
+        let code = diagnostic.code
+        let attempt = rawResponses.count + 1
+        let recordedModel = model
+        let recordedBackoff = backoffMS
+        LetterLensLog.pipeline.error(
+            "Model call failed domain \(domain, privacy: .public) code \(code, privacy: .public) attempt \(attempt, privacy: .public)"
+        )
+        rawResponses.append(
+            ModelRawResponse(
+                chunk: chunk,
+                attempt: attempt,
+                text: "",
+                error: "\(domain) error \(code)",
+                backoffMS: recordedBackoff,
+                model: recordedModel
+            )
+        )
     }
 
     /// On-device calls are cut off well under the ~190s hangs seen in the 15-letter run.
@@ -320,8 +431,6 @@ struct CardService {
     private func reinserted(_ card: LetterCard, map: RedactionMap?) -> LetterCard {
         guard let map, map.removedCount > 0 else { return card }
         var card = card
-        card.type = map.reinsert(into: card.type)
-        card.senderKind = map.reinsert(into: card.senderKind)
         card.action = map.reinsert(into: card.action)
         if let deadline = card.deadline {
             card.deadline = map.reinsert(into: deadline)

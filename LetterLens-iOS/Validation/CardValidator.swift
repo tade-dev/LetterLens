@@ -10,10 +10,8 @@ import Foundation
 enum CardValidator {
     static func validate(_ card: LetterCard, ocrText: String) -> LetterCard {
         var card = card
-        card.type = SafetyCopy.cleaned(card.type)
         card.action = SafetyCopy.cleaned(card.action)
         card.watchOuts = card.watchOuts.map(SafetyCopy.cleaned).filter { !$0.isEmpty }
-        card.senderKind = canonicalSender(card.senderKind)
         applyDeadline(&card, ocrText: ocrText)
         applyAmount(&card, ocrText: ocrText)
         card.scamSigns = card.scamSigns.compactMap { keptSign($0, ocrText: ocrText) }
@@ -25,8 +23,9 @@ enum CardValidator {
         if cards.count == 1 { return merged }
 
         for card in cards.dropFirst() {
-            if merged.type.isEmpty { merged.type = card.type }
-            if merged.senderKind == "other", card.senderKind != "other" {
+            if merged.type == .notSure { merged.type = card.type }
+            if (merged.senderKind == .notSure || merged.senderKind == .other),
+               card.senderKind != .notSure, card.senderKind != .other {
                 merged.senderKind = card.senderKind
             }
             if merged.action.isEmpty { merged.action = card.action }
@@ -87,10 +86,5 @@ enum CardValidator {
         guard let exact = QuoteChecker.verbatimSpan(of: sign.quote, in: ocrText) else { return nil }
         sign.quote = exact
         return sign
-    }
-
-    private static func canonicalSender(_ value: String) -> String {
-        let normalised = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return LetterCard.senderKinds.contains(normalised) ? normalised : "other"
     }
 }
