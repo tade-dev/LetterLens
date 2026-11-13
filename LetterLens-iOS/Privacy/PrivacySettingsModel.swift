@@ -42,11 +42,11 @@ enum StoredLettersCopy {
         let count = max(0, count)
         switch count {
         case 0:
-            String(localized: "No letters stored on this iPhone")
+            return String(localized: "No letters stored on this iPhone")
         case 1:
-            String(localized: "1 letter, on this iPhone only")
+            return String(localized: "1 letter, on this iPhone only")
         default:
-            String(localized: "\(count) letters, on this iPhone only")
+            return String(localized: "\(count) letters, on this iPhone only")
         }
     }
 }
