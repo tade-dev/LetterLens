@@ -24,6 +24,9 @@ struct ScanEntryScreen: View {
     @State private var pages: [UIImage] = []
     @State private var readingProgress: ReadingProgress?
     @State private var showReading = false
+    @State private var captureToken = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @ScaledMetric(relativeTo: .body) private var rowMinHeight: CGFloat = 64
 
     var body: some View {
@@ -43,7 +46,6 @@ struct ScanEntryScreen: View {
             }
             .navigationTitle("Scan")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showReading) {
                 if let readingProgress {
                     ReadingScreen(
@@ -85,8 +87,16 @@ struct ScanEntryScreen: View {
                     }
                 }
             }
+            .sensoryFeedback(.success, trigger: captureToken)
         }
         .preferredColorScheme(.light)
+    }
+
+    /// Spring into reading. Reduce Motion uses the same short fade as a page change.
+    private var pushAnimation: Animation {
+        reduceMotion
+            ? .easeOut(duration: ReadingMotion.reduceMotionCrossfade)
+            : .spring(duration: ReadingMotion.pushSpringDuration, bounce: ReadingMotion.pushSpringBounce)
     }
 
     private var cameraBlock: some View {
@@ -114,6 +124,20 @@ struct ScanEntryScreen: View {
     }
 
     private var importBlock: some View {
+        // System glass buttons, grouped so neighbouring controls blend.
+        // Reduce Transparency drops the material for an opaque surface row.
+        Group {
+            if reduceTransparency {
+                importRows
+            } else {
+                GlassEffectContainer(spacing: LLSpace.m) {
+                    importRows
+                }
+            }
+        }
+    }
+
+    private var importRows: some View {
         VStack(spacing: LLSpace.m) {
             importRow("Choose a photo", systemImage: "photo") {
                 showPhotos = true
@@ -124,26 +148,38 @@ struct ScanEntryScreen: View {
         }
     }
 
+    @ViewBuilder
     private func importRow(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: LLSpace.m) {
-                Image(systemName: systemImage)
-                    .font(LLFont.callout)
-                    .foregroundStyle(LLColor.ink)
-                    .accessibilityHidden(true)
-                Text(title)
-                    .font(LLFont.callout)
-                    .foregroundStyle(LLColor.ink)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+        if reduceTransparency {
+            Button(action: action) {
+                importLabel(title, systemImage: systemImage)
             }
-            .padding(.horizontal, LLSpace.card)
-            .padding(.vertical, LLSpace.m)
-            .frame(maxWidth: .infinity, minHeight: rowMinHeight, alignment: .leading)
+            .buttonStyle(PressFadeButtonStyle())
             .background(LLColor.surface, in: RoundedRectangle(cornerRadius: LLRadius.card, style: .continuous))
+        } else {
+            Button(action: action) {
+                importLabel(title, systemImage: systemImage)
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.roundedRectangle(radius: LLRadius.card))
         }
-        .buttonStyle(PressFadeButtonStyle())
+    }
+
+    private func importLabel(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: LLSpace.m) {
+            Image(systemName: systemImage)
+                .font(LLFont.callout)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(LLFont.callout)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(LLColor.ink)
+        .padding(.horizontal, LLSpace.card)
+        .padding(.vertical, LLSpace.m)
+        .frame(maxWidth: .infinity, minHeight: rowMinHeight, alignment: .leading)
     }
 
     private var shareLine: some View {
@@ -184,7 +220,10 @@ struct ScanEntryScreen: View {
         guard !images.isEmpty else { return }
         pages = images
         readingProgress = ReadingProgress(pagesTotal: images.count, path: path)
-        showReading = true
+        captureToken += 1
+        withAnimation(pushAnimation) {
+            showReading = true
+        }
     }
 }
 
