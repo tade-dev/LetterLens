@@ -33,25 +33,19 @@ struct ClearInkGlassButton: View {
 
     var title: LocalizedStringKey
     var kind: Kind
-    /// Opaque fill for the secondary button when Reduce Transparency is on.
-    var opaqueSecondaryFill: Color
     var action: () -> Void
 
     init(
         _ title: LocalizedStringKey,
         kind: Kind,
-        opaqueSecondaryFill: Color = LLColor.ground,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.kind = kind
-        self.opaqueSecondaryFill = opaqueSecondaryFill
         self.action = action
     }
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @ScaledMetric(relativeTo: .body) private var primaryHeight = LLSize.primaryButton
-    @ScaledMetric(relativeTo: .body) private var secondaryHeight = LLSize.secondaryButton
 
     var body: some View {
         if reduceTransparency {
@@ -61,19 +55,10 @@ struct ClearInkGlassButton: View {
         }
     }
 
+    /// System large controls are about 50pt. No min height, or glass padding stacks on top.
     private var label: some View {
         Text(title)
-            .font(LLFont.button)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, minHeight: height)
-    }
-
-    private var height: CGFloat {
-        switch kind {
-        case .prominent: primaryHeight
-        case .regular: secondaryHeight
-        }
+            .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -81,10 +66,16 @@ struct ClearInkGlassButton: View {
         switch kind {
         case .prominent(let color):
             Button(action: action) { label }
-                .buttonStyle(LLPrimaryButtonStyle(fill: color))
+                .buttonStyle(.borderedProminent)
+                .buttonSizing(.flexible)
+                .controlSize(.large)
+                .tint(color)
         case .regular:
             Button(action: action) { label }
-                .buttonStyle(LLSecondaryButtonStyle(fill: opaqueSecondaryFill))
+                .buttonStyle(.bordered)
+                .buttonSizing(.flexible)
+                .controlSize(.large)
+                .tint(LLColor.ink)
         }
     }
 
