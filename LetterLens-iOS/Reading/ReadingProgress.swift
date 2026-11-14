@@ -155,11 +155,20 @@ final class ReadingProgress: ReadingProgressSnapshot {
     private(set) var redactedCount: Int = 0
     private(set) var phase: ReadingPhase = .ocr
     private(set) var didFinishRedaction = false
+    /// The validated card. Screen 04 does not render it. RootView pushes 05 or 06
+    /// from this value when reading finishes. Nil means the pipeline has not stored one.
+    var card: LetterCard?
 
     init(pagesTotal: Int, path: ReadingPath) {
         precondition(pagesTotal > 0, "A letter has at least one page.")
         self.pagesTotal = pagesTotal
         self.path = path
+    }
+
+    /// Stores the card, then validates when the checklist is still in the carding phase.
+    func validate(_ card: LetterCard) {
+        self.card = card
+        apply(.cardValidated)
     }
 
     func apply(_ event: ReadingEvent) {

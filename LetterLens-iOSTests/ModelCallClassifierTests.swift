@@ -1,0 +1,84 @@
+//
+//  ModelCallClassifierTests.swift
+//  LetterLens-iOSTests
+//
+
+import Foundation
+import Testing
+@testable import LetterLens_iOS
+
+@MainActor
+@Suite struct ModelCallClassifierTests {
+    @Test func sensitiveContentDomainIsAGuardrailBlock() {
+        let error = NSError(domain: "com.apple.SensitiveContentAnalysisML", code: 15)
+        #expect(ModelCallClassifier.isOnDeviceGuardrail(error))
+    }
+
+    @Test func aNestedSensitiveContentDomainIsAGuardrailBlock() {
+        let inner = NSError(domain: "com.apple.SensitiveContentAnalysisML", code: 15)
+        let outer = NSError(domain: "Wrapped", code: 1, userInfo: [NSUnderlyingErrorKey: inner])
+        #expect(ModelCallClassifier.isOnDeviceGuardrail(outer))
+    }
+
+    @Test func anotherDomainIsNotAGuardrailBlock() {
+        let error = NSError(
+            domain: "com.example.network",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "The model's safety guardrails were triggered."]
+        )
+        #expect(!ModelCallClassifier.isOnDeviceGuardrail(error))
+        #expect(!ModelCallClassifier.isSensitiveContentDomain("com.apple.foundationmodels"))
+    }
+
+    @Test func generateContentErrorZeroIsAnOnDeviceBlock() {
+        let error = NSError(domain: "FirebaseAILogic.GenerateContentError", code: 0)
+        #expect(ModelCallClassifier.isOnDeviceGuardrail(error))
+    }
+
+    @Test func generateContentInternalErrorPeelsTheUnderlyingDomain() {
+        let underlying = NSError(domain: "com.apple.SensitiveContentAnalysisML", code: 15)
+        let error = NSError(
+            domain: "FirebaseAILogic.GenerateContentError",
+            code: 0,
+            userInfo: [NSUnderlyingErrorKey: underlying]
+        )
+        let diagnostic = ModelCallClassifier.diagnostic(error)
+        #expect(diagnostic.domain == "com.apple.SensitiveContentAnalysisML")
+        #expect(diagnostic.code == 15)
+        #expect(ModelCallClassifier.isOnDeviceGuardrail(error))
+    }
+
+    @Test func anotherGenerateContentCaseIsNotAnOnDeviceBlock() {
+        let error = NSError(domain: "FirebaseAILogic.GenerateContentError", code: 2)
+        #expect(!ModelCallClassifier.isOnDeviceGuardrail(error))
+    }
+
+    @Test func aTimeoutIsAnOnDeviceBlock() {
+        #expect(ModelCallClassifier.isOnDeviceGuardrail(OnDeviceCallTimeout(seconds: 60)))
+        #expect(ModelCallClassifier.isOnDeviceGuardrail(URLError(.timedOut)))
+    }
+
+    @Test func rateLimitAndUnavailableAreCloudRetries() {
+        let rateLimit = NSError(domain: "com.google.firebase.firebaseai.BackendError", code: 429)
+        let unavailable = NSError(domain: "com.google.firebase.firebaseai.BackendError", code: 503)
+        #expect(ModelCallClassifier.isCloudRetryable(rateLimit))
+        #expect(ModelCallClassifier.isCloudRetryable(unavailable))
+        #expect(ModelCallClassifier.httpStatus(rateLimit) == 429)
+    }
+
+    @Test func otherClientErrorsAreNotCloudRetries() {
+        for code in [400, 401, 403] {
+            let error = NSError(domain: "com.google.firebase.firebaseai.BackendError", code: code)
+            #expect(!ModelCallClassifier.isCloudRetryable(error))
+        }
+    }
+
+    @Test func retryAfterIsReadFromTheError() {
+        let error = NSError(
+            domain: "com.google.firebase.firebaseai.BackendError",
+            code: 429,
+            userInfo: ["Retry-After": "4"]
+        )
+        #expect(ModelCallClassifier.retryAfterSeconds(error) == 4)
+    }
+}

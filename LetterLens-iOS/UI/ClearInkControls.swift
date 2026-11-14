@@ -32,15 +32,18 @@ struct ClearInkGlassButton: View {
     }
 
     var title: LocalizedStringKey
+    var systemImage: String?
     var kind: Kind
     var action: () -> Void
 
     init(
         _ title: LocalizedStringKey,
+        systemImage: String? = nil,
         kind: Kind,
         action: @escaping () -> Void
     ) {
         self.title = title
+        self.systemImage = systemImage
         self.kind = kind
         self.action = action
     }
@@ -57,8 +60,17 @@ struct ClearInkGlassButton: View {
 
     /// System large controls are about 50pt. No min height, or glass padding stacks on top.
     private var label: some View {
-        Text(title)
-            .frame(maxWidth: .infinity)
+        HStack(spacing: LLSpace.s) {
+            Spacer(minLength: 0)
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .accessibilityHidden(true)
+            }
+            Text(title)
+                .multilineTextAlignment(.center)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -144,6 +156,36 @@ struct ClearInkEntrance: ViewModifier {
 extension View {
     func clearInkEntrance(index: Int, appeared: Bool) -> some View {
         modifier(ClearInkEntrance(index: index, appeared: appeared))
+    }
+}
+
+/// Staggered card entrance for screens 05 and 06.
+/// Reduce Motion drops the offset and fades the cards in together.
+struct LetterCardEntrance: ViewModifier {
+    var index: Int
+    var appeared: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared || reduceMotion ? 0 : 8)
+            .animation(animation.delay(delay), value: appeared)
+    }
+
+    private var delay: Double {
+        reduceMotion ? 0 : 0.05 * Double(index)
+    }
+
+    private var animation: Animation {
+        reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.5, bounce: 0.15)
+    }
+}
+
+extension View {
+    func letterCardEntrance(index: Int, appeared: Bool) -> some View {
+        modifier(LetterCardEntrance(index: index, appeared: appeared))
     }
 }
 
