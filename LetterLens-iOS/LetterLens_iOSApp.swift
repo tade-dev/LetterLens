@@ -6,29 +6,15 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct LetterLens_iOSApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
     var body: some Scene {
         WindowGroup {
             // Clear Ink is light only. Asset colours are Any appearance.
-            ContentView()
+            // `-LLHarness` is unchanged: this target has no harness branch.
+            RootView()
                 .preferredColorScheme(.light)
         }
-        .modelContainer(sharedModelContainer)
     }
 }
