@@ -13,8 +13,11 @@ struct LetterRead: Equatable {
     var pageCount: Int
 
     var fromLine: String {
+        let sender = "From \(card.senderKind.title)"
+        // Stored letters do not keep a page count. Zero must not pretend there was one page.
+        guard pageCount > 0 else { return sender }
         let pages = pageCount == 1 ? "1 page" : "\(pageCount) pages"
-        return "From \(card.senderKind.title) · \(pages)"
+        return "\(sender) · \(pages)"
     }
 }
 

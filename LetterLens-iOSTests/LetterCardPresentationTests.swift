@@ -59,6 +59,13 @@ struct LetterCardPresentationTests {
         #expect(LetterRead(card: card, path: .cloud, pageCount: 1).fromLine == "From Council tax · 1 page")
     }
 
+    @Test func aStoredLetterDoesNotInventAPageCount() {
+        var card = LetterCard.empty
+        card.senderKind = .council
+        #expect(LetterRead(card: card, path: .device, pageCount: 0).fromLine == "From Council tax")
+        #expect(LetterRead(card: card, path: .cloud, pageCount: -1).fromLine == "From Council tax")
+    }
+
     private func london(_ year: Int, _ month: Int, _ day: Int, hour: Int) throws -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "Europe/London"))

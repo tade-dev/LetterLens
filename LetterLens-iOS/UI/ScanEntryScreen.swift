@@ -23,10 +23,14 @@ struct ScanEntryScreen: View {
     /// `card` is nil when reading finishes before the pipeline stores one.
     var onCardReady: (LetterCard?, ReadingPath, Int) -> Void = { _, _, _ in }
     var onReadingFailed: () -> Void = {}
+    /// Home's import button pushes Scan and opens the photo and PDF choices.
+    var opensImport = false
 
     @State private var showScanner = false
     @State private var showPhotos = false
     @State private var showPDF = false
+    @State private var showImportChoices = false
+    @State private var didOfferImport = false
     @State private var photoItem: PhotosPickerItem?
     @State private var pendingScan: [UIImage] = []
     @State private var pendingImages: [UIImage] = []
@@ -122,6 +126,20 @@ struct ScanEntryScreen: View {
             .ignoresSafeArea()
         }
         .photosPicker(isPresented: $showPhotos, selection: $photoItem, matching: .images)
+        .confirmationDialog(
+            "Import a PDF or photo",
+            isPresented: $showImportChoices,
+            titleVisibility: .visible
+        ) {
+            Button("Choose a photo") { showPhotos = true }
+            Button("Import a PDF") { showPDF = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onAppear {
+            guard opensImport, !didOfferImport else { return }
+            didOfferImport = true
+            showImportChoices = true
+        }
         .fileImporter(
             isPresented: $showPDF,
             allowedContentTypes: [.pdf],

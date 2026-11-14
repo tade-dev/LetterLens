@@ -3,9 +3,11 @@
 //  LetterLens-iOS
 //
 //  Screen 05. Plain cards on ground. Glass stays on the buttons and the navigation bar.
-//  Plan next steps pushes the local placeholder. Add reminder does not ask permission.
-//  Mark done only flips state on this screen.
+//  Plan next steps pushes screen 08. Add reminder does not ask permission.
+//  Mark done updates LetterCompletion when this letter has an id. Otherwise it
+//  stays on this screen. Neither path writes the store.
 
+import SwiftData
 import SwiftUI
 
 struct LetterCardScreen: View {
@@ -14,10 +16,16 @@ struct LetterCardScreen: View {
     var pageCount: Int
     var onAddReminder: () -> Void = {}
     var onPlanNextSteps: () -> Void = {}
+    var ocrText: String = ""
+    var letterID: UUID? = nil
+    var completion: LetterCompletion? = nil
+    var preferences: PrivacySettingsModel = PrivacySettingsModel(writesDefaults: false)
+    var planner: any NextStepsPlanner = LocalSampleNextStepsPlanner()
+    var availability: OnDeviceReadingAvailability = .available
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var appeared = false
-    @State private var isDone = false
+    @State private var localDone = false
     @State private var doneTaps = 0
     @State private var showNextSteps = false
     @ScaledMetric(relativeTo: .subheadline) private var watchDot: CGFloat = 6
@@ -49,7 +57,13 @@ struct LetterCardScreen: View {
         .background(LLColor.ground.ignoresSafeArea())
         .letterProvenanceToolbar(path: path)
         .navigationDestination(isPresented: $showNextSteps) {
-            NextStepsPlaceholderScreen()
+            WhatGetsSentScreen(
+                card: card,
+                ocrText: ocrText,
+                preferences: preferences,
+                planner: planner,
+                availability: availability
+            )
         }
         .sensoryFeedback(.impact(weight: .light), trigger: doneTaps)
         .preferredColorScheme(.light)
@@ -220,18 +234,37 @@ struct LetterCardScreen: View {
         }
     }
 
+    private var isDone: Bool {
+        if let letterID, let completion {
+            completion.isDone(letterID)
+        } else {
+            localDone
+        }
+    }
+
     private var markDoneButton: some View {
         ClearInkGlassButton(
             "Mark done",
             systemImage: isDone ? "checkmark" : nil,
             kind: .regular
         ) {
-            if !isDone {
-                doneTaps += 1
-            }
-            isDone.toggle()
+            toggleDone()
         }
         .accessibilityValue(isDone ? "Done" : "Not done")
+    }
+
+    private func toggleDone() {
+        if let letterID, let completion {
+            if !completion.isDone(letterID) {
+                doneTaps += 1
+            }
+            completion.toggle(letterID)
+        } else {
+            if !localDone {
+                doneTaps += 1
+            }
+            localDone.toggle()
+        }
     }
 
     private var planButton: some View {
@@ -259,9 +292,11 @@ struct LetterCardScreen: View {
         LetterCardScreen(
             card: LetterCardScreenPreview.councilReminder,
             path: .device,
-            pageCount: 2
+            pageCount: 2,
+            ocrText: "Dear Jane Smith, please pay by 3 December 2026. Our reference: AB12CD34EF."
         )
     }
+    .modelContainer(for: LetterRecord.self, inMemory: true)
 }
 
 #Preview("05 Letter card, cloud, no deadline") {
@@ -272,6 +307,7 @@ struct LetterCardScreen: View {
             pageCount: 1
         )
     }
+    .modelContainer(for: LetterRecord.self, inMemory: true)
 }
 
 private enum LetterCardScreenPreview {
