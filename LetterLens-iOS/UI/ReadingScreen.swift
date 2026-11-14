@@ -3,8 +3,9 @@
 //  LetterLens-iOS
 //
 //  Screen 04. Device and cloud share one layout. Colour, copy, and the
-//  redaction row follow `ReadingProgress.path`. The card screen is not here:
-//  `onCardReady` fires after validation. `onReadingFailed` is the route to
+//  redaction row follow `ReadingProgress.path`. `onCardReady` fires after
+//  validation. RootView pushes screen 06 when `progress.card` has a scam sign,
+//  and screen 05 for any other stored card. `onReadingFailed` is the route to
 //  state 15, which is not built yet.
 
 import SwiftUI

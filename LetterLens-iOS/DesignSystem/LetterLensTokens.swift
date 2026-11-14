@@ -36,6 +36,7 @@ enum LLColor {
     // Warning. Use ONLY for "Signs to check", penalties, and destructive actions.
     static let warning     = Color("warning")           // #B42318
     static let warningTint = Color("warningTint")       // #FDECEA
+    static let warningOn   = Color("warningOn")         // #FCE3E0  text on the warning fill
 }
 
 // MARK: - Type
@@ -73,7 +74,7 @@ enum LLSpace {
 
 enum LLRadius {
     static let iconButton: CGFloat = 12, tile: CGFloat = 14, button: CGFloat = 16
-    static let card: CGFloat = 18, panel: CGFloat = 24, sheet: CGFloat = 28
+    static let card: CGFloat = 18, warningCard: CGFloat = 20, panel: CGFloat = 24, sheet: CGFloat = 28
 }
 
 enum LLSize {
@@ -89,10 +90,12 @@ enum LLSize {
 
 struct LLSectionLabel: View {
     let text: String
+    var color: Color = LLColor.inkSecondary
+
     var body: some View {
         Text(text.uppercased())
             .font(LLFont.label).tracking(0.6)
-            .foregroundStyle(LLColor.inkSecondary)
+            .foregroundStyle(color)
             .accessibilityAddTraits(.isHeader)
     }
 }

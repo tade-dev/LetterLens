@@ -20,7 +20,8 @@ struct ScanEntryScreen: View {
     )
     var availability: OnDeviceReadingAvailability = .available
     var preferences: PrivacySettingsModel = PrivacySettingsModel(writesDefaults: false)
-    var onCardReady: () -> Void = {}
+    /// `card` is nil when reading finishes before the pipeline stores one.
+    var onCardReady: (LetterCard?, ReadingPath, Int) -> Void = { _, _, _ in }
     var onReadingFailed: () -> Void = {}
 
     @State private var showScanner = false
@@ -71,7 +72,9 @@ struct ScanEntryScreen: View {
                 ReadingScreen(
                     pages: pages,
                     progress: readingProgress,
-                    onCardReady: onCardReady,
+                    onCardReady: {
+                        onCardReady(readingProgress.card, readingProgress.path, pages.count)
+                    },
                     onReadingFailed: onReadingFailed
                 )
             }
