@@ -30,7 +30,9 @@ enum CardReadSource: String, Equatable {
     }
 
     /// `rawResponse.modelVersion` when the system model served the request.
-    /// https://firebase.google.com/docs/ai-logic/hybrid/ios/configuration-options
+    /// Firebase AI Logic 12.19.3 sets this in the on-device response builder.
+    /// A Gemini answer carries the backend `modelVersion` instead. HybridModelSession
+    /// returns that inner response unchanged, so the badge follows this string.
     static let onDeviceModelVersion = "apple-foundation-models-system-language-model"
     static let unknownModelVersion = "unknown-model-version"
 
@@ -43,6 +45,27 @@ enum CardReadSource: String, Equatable {
             return route == .onDeviceOnly ? .onDevice : .cloud
         }
         return .cloud
+    }
+}
+
+/// Model name written on a failed attempt in `NN.raw.json`.
+///
+/// A hybrid failure has no response, and HybridModelSession does not put the
+/// failing side on the thrown error. The label stays `hybrid(on-device-first)`
+/// so a cloud `BackendError` is not stored as the on-device model. The error
+/// string still carries the underlying domain and code.
+enum AttemptModelLabel {
+    static let hybridOnDeviceFirst = "hybrid(on-device-first)"
+
+    static func forFailedAttempt(route: ModelRoute) -> String {
+        switch route {
+        case .onDeviceOnly:
+            CardReadSource.onDeviceModelVersion
+        case .hybridOnDeviceFirst:
+            hybridOnDeviceFirst
+        case .cloudPrimary:
+            "cloud"
+        }
     }
 }
 

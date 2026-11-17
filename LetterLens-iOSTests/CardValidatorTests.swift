@@ -114,6 +114,19 @@ import Testing
         )
         #expect(validated.deadline == "2027-03-03")
         #expect(validated.deadlineQuote == quote)
+        #expect(DeadlineQuote.containsActionCue(in: quote))
+    }
+
+    @Test func nearbyDoesNotCountAsTheWordBy() {
+        let quote = "These changes take effect from 1 January 2027 at our nearby branch"
+        #expect(!DeadlineQuote.containsActionCue(in: "our nearby branch"))
+        #expect(!DeadlineQuote.containsActionCue(in: "byte"))
+        let validated = CardValidator.validate(
+            sample(deadline: "2027-01-01", deadlineQuote: quote, amountQuote: nil),
+            ocrText: quote
+        )
+        #expect(validated.deadline == nil)
+        #expect(validated.deadlineQuote == nil)
     }
 
     @Test func effectiveDateMatchingIsCaseInsensitive() {

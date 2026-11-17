@@ -39,8 +39,25 @@ enum DeadlineQuote {
 
     /// True when the quote is an effective date and does not also ask the reader to act.
     static func isEffectiveDateWithoutAction(_ quote: String) -> Bool {
-        let lowered = quote.lowercased()
-        guard effectPhrases.contains(where: { lowered.contains($0) }) else { return false }
-        return !actionCues.contains(where: { lowered.contains($0) })
+        guard effectPhrases.contains(where: { quote.range(of: $0, options: [.caseInsensitive]) != nil }) else {
+            return false
+        }
+        return !containsActionCue(in: quote)
+    }
+
+    /// True when `quote` contains an action cue as a whole word or phrase.
+    /// "by" matches "Pay by 3 March" and does not match "nearby" or "byte".
+    static func containsActionCue(in quote: String) -> Bool {
+        actionCues.contains { matchesTerm($0, in: quote) }
+    }
+
+    /// Word-boundary match. Multi-word cues such as "no later than" stay one phrase.
+    private static func matchesTerm(_ term: String, in text: String) -> Bool {
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: term))\\b"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return false
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.firstMatch(in: text, range: range) != nil
     }
 }

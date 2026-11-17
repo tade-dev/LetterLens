@@ -31,6 +31,8 @@ enum LetterHarness {
         let neverUpload = flag(environment["LL_NEVER_UPLOAD"])
         let cloudConsent = flag(environment["LL_CLOUD_CONSENT"])
 
+        let letterGapSeconds = Self.letterGapSeconds(environment["LL_LETTER_GAP_SECONDS"])
+
         guard let inputPath = environment["LL_HARNESS_IN"], !inputPath.isEmpty,
               let outputPath = environment["LL_HARNESS_OUT"], !outputPath.isEmpty
         else {
@@ -59,6 +61,7 @@ enum LetterHarness {
                 textMode: textMode,
                 neverUpload: neverUpload,
                 cloudConsent: cloudConsent,
+                letterGapSeconds: letterGapSeconds,
                 letters: [],
                 harnessError: error.localizedDescription
             )
@@ -73,6 +76,7 @@ enum LetterHarness {
                 textMode: textMode,
                 neverUpload: neverUpload,
                 cloudConsent: cloudConsent,
+                letterGapSeconds: letterGapSeconds,
                 letters: [],
                 harnessError: "No numbered letters found."
             )
@@ -87,7 +91,10 @@ enum LetterHarness {
         )
 
         var rows: [HarnessLetterRow] = []
-        for letter in letters {
+        for (index, letter) in letters.enumerated() {
+            if index > 0, letterGapSeconds > 0 {
+                try? await Task.sleep(for: .seconds(letterGapSeconds))
+            }
             let padded = String(format: "%02d", letter.number)
             let kind = letter.url.pathExtension.lowercased()
             do {
@@ -151,6 +158,7 @@ enum LetterHarness {
             textMode: textMode,
             neverUpload: neverUpload,
             cloudConsent: cloudConsent,
+            letterGapSeconds: letterGapSeconds,
             letters: rows,
             harnessError: nil
         )
@@ -166,6 +174,14 @@ enum LetterHarness {
         default:
             return false
         }
+    }
+
+    /// Pause between harness letters. `LL_LETTER_GAP_SECONDS` defaults to 0.
+    private static func letterGapSeconds(_ raw: String?) -> Int {
+        guard let raw else { return 0 }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int(trimmed), value > 0 else { return 0 }
+        return value
     }
 
     private static func discover(in directory: URL, textMode: Bool) throws -> [(number: Int, url: URL)] {
@@ -243,6 +259,7 @@ enum LetterHarness {
         textMode: Bool,
         neverUpload: Bool,
         cloudConsent: Bool,
+        letterGapSeconds: Int,
         letters: [HarnessLetterRow],
         harnessError: String?
     ) -> Int32 {
@@ -262,6 +279,7 @@ enum LetterHarness {
             output: output,
             neverUpload: neverUpload,
             cloudConsent: cloudConsent,
+            letterGapSeconds: letterGapSeconds,
             harnessError: harnessError,
             failed: failed,
             exitCode: Int(exitCode),
@@ -286,6 +304,7 @@ private struct HarnessSummary: Encodable {
     var output: String
     var neverUpload: Bool
     var cloudConsent: Bool
+    var letterGapSeconds: Int
     var harnessError: String?
     var failed: Int
     var exitCode: Int
@@ -298,6 +317,7 @@ private struct HarnessSummary: Encodable {
         case output
         case neverUpload = "never_upload"
         case cloudConsent = "cloud_consent"
+        case letterGapSeconds = "letter_gap_seconds"
         case harnessError = "harness_error"
         case failed
         case exitCode = "exit_code"
