@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist-tests",
+    "rootDir": ".",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "lib": ["ES2022"]
+  },
+  "include": [
+    "src/card/**/*.ts",
+    "src/privacy/**/*.ts",
+    "src/read/**/*.ts",
+    "src/text.ts",
+    "src/tokens.ts",
+    "tests/**/*.ts"
+  ]
+}

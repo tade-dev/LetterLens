@@ -3,7 +3,17 @@ GoogleService-Info.plist
 **/GoogleService-Info.plist
 
 # Xcode
+# App Check debug tokens belong in a local scheme under xcuserdata.
+# Do not share that scheme or commit FIRAAppCheckDebugToken.
 xcuserdata/
 DerivedData/
 *.xcuserstate
 .DS_Store
+
+# Web app
+web/app/node_modules/
+web/app/dist/
+web/app/dist-tests/
+web/app/.env
+web/app/.env.local
+web/app/.env.*.local
