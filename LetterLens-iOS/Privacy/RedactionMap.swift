@@ -24,21 +24,23 @@ struct RedactionMap: Equatable {
     /// Puts the original text back. Token match is case-insensitive.
     /// Longer tokens are replaced first so `[NAME_10]` is not eaten by `[NAME_1]`.
     /// A slightly damaged token is restored too: `[amount_1)`, `S[AMOUNT_1]`, or `S[AMOUNT)`
-    /// when that kind appears only once.
+    /// when that kind appears only once. The stray letter is part of the match, so
+    /// `S[AMOUNT_1]` becomes the original text and not `S` plus the original.
     func reinsert(into text: String) -> String {
         var result = text
         let ordered = entries.sorted { $0.token.count > $1.token.count }
-        for entry in ordered {
-            result = Self.replaceLiteral(entry.token, with: entry.original, in: result)
-        }
-
         let shapes = ordered.compactMap { entry -> (entry: Entry, shape: TokenShape)? in
             guard let shape = TokenShape.parse(entry.token) else { return nil }
             return (entry, shape)
         }
+        // Damaged forms first, so a letter stuck to the bracket is consumed with the token.
+        // Doing the exact form first would leave that letter behind.
         for item in shapes.sorted(by: { $0.shape.number > $1.shape.number }) {
             let pattern = Self.numberedPattern(kind: item.shape.kind, number: item.shape.number)
             result = Self.replacePattern(pattern, with: item.entry.original, in: result)
+        }
+        for entry in ordered {
+            result = Self.replaceLiteral(entry.token, with: entry.original, in: result)
         }
 
         let grouped = Dictionary(grouping: shapes, by: { $0.shape.kind.uppercased() })
@@ -84,12 +86,27 @@ struct RedactionMap: Equatable {
         in text: String,
         options: NSRegularExpression.Options = []
     ) -> String {
-        let template = NSRegularExpression.escapedTemplate(for: original)
         guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else {
             return text
         }
-        let range = NSRange(text.startIndex..., in: text)
-        return regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: template)
+        let nsText = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+        guard !matches.isEmpty else { return text }
+        var rebuilt = ""
+        var cursor = 0
+        for match in matches where match.range.location >= cursor {
+            let range = match.range
+            if range.location > cursor {
+                rebuilt += nsText.substring(with: NSRange(location: cursor, length: range.location - cursor))
+            }
+            // Copy the stored original. A replacement template can rewrite `$` and `\`.
+            rebuilt += original
+            cursor = range.location + range.length
+        }
+        if cursor < nsText.length {
+            rebuilt += nsText.substring(from: cursor)
+        }
+        return rebuilt
     }
 }
 

@@ -46,7 +46,8 @@ enum SafetyCopy {
     }
 
     private static func splitSentences(_ text: String) -> [String] {
-        guard let regex = try? NSRegularExpression(pattern: "[^.!?]+[.!?]?") else {
+        // A dot between digits is a decimal point (`£42.50`), not the end of a sentence.
+        guard let regex = try? NSRegularExpression(pattern: #"(?:[^.!?]|\.(?=\d))+[.!]?"#) else {
             return [text]
         }
         let range = NSRange(text.startIndex..., in: text)
