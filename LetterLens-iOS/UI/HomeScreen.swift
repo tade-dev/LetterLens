@@ -86,9 +86,10 @@ struct HomeScreen: View {
                 availability: availability,
                 preferences: preferences,
                 opensImport: scanOpensImport,
-                onCardReady: { card, path, pageCount in
-                    guard let card else { return }
-                    finishedRead = LetterRead(card: card, path: path, pageCount: pageCount)
+                onCardReady: { read in
+                    guard let read else { return }
+                    storeScannedLetter(read)
+                    finishedRead = read
                     showLetter = true
                 }
             )
@@ -102,6 +103,8 @@ struct HomeScreen: View {
                             path: finishedRead.path,
                             pageCount: finishedRead.pageCount,
                             ocrText: finishedRead.ocrText,
+                            letterID: finishedRead.id,
+                            completion: completion,
                             preferences: preferences,
                             availability: availability
                         )
@@ -457,6 +460,15 @@ struct HomeScreen: View {
 
     private func readingPath(for record: LetterRecord) -> ReadingPath {
         record.source == .cloud ? .cloud : .device
+    }
+
+    /// The scan/reading hand-off. One record per scan id, with the OCR text on `ocrText`.
+    private func storeScannedLetter(_ read: LetterRead) {
+        do {
+            _ = try LetterHistory.write(read, into: modelContext)
+        } catch {
+            // The card still opens. A later hand-off of this same id can try again.
+        }
     }
 
     private func openScan(importOptions: Bool) {
