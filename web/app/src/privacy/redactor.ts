@@ -75,6 +75,18 @@ export function reinsert(map: RedactionMap, text: string): string {
   return result;
 }
 
+/**
+ * A redaction token is `[LABEL_N]`. A fragment counts as well: an uppercase
+ * label with a lone `[` or `]`, including a mismatched closer such as
+ * `S[AMOUNT)`, `[AMOUNT`, and `AMOUNT_1]`.
+ */
+const LEFTOVER_PLACEHOLDER =
+  /\[[A-Za-z]{2,}_\d+\]|\[[A-Z]{2,}(?:_\d+)?|[A-Za-z]{2,}_\d+\]|[A-Z]{2,}\]/;
+
+export function hasLeftoverPlaceholder(text: string): boolean {
+  return LEFTOVER_PLACEHOLDER.test(text);
+}
+
 export function describeRemovals(result: RedactionResult): string {
   if (result.removedCount === 0) {
     return "No names, addresses, numbers, or email addresses were found.";

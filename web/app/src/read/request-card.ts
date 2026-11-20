@@ -63,9 +63,13 @@ export async function requestCard(input: {
       invalidReason = parsed.reason;
       continue;
     }
-    const restored = input.redactionMap ? restoreCard(parsed.card, input.redactionMap) : parsed.card;
+    const restored = restoreCard(parsed.card, input.redactionMap ?? { entries: [] });
+    if (!restored.ok) {
+      invalidReason = restored.reason;
+      continue;
+    }
     const place: AnswerPlace = reported === "unreported" ? input.expected : reported;
-    return { ok: true, card: validateCard(restored, input.letter), place, attempts };
+    return { ok: true, card: validateCard(restored.card, input.letter), place, attempts };
   }
   return { ok: false, code: "invalid", message: invalidReason, retryable: false, attempts };
 }
