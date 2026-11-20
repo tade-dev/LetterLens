@@ -11,7 +11,7 @@ test("a published schema 1 prompt is ignored in favour of the bundled v2 prompt"
   const settings = resolveCardSettings({
     prompt: V1_PROMPT,
     schemaVersion: 1,
-    cardModel: "gemini-3.8-flash",
+    cardModel: "",
     fallbackModel: "",
   });
   assert.equal(settings.promptSource, "bundled");
@@ -19,8 +19,10 @@ test("a published schema 1 prompt is ignored in favour of the bundled v2 prompt"
   assert.match(settings.prompt, /final_notice/);
   assert.match(settings.prompt, /takes effect/);
   assert.equal(settings.schemaVersion, 2);
-  assert.equal(settings.fallbackModel, DEFAULT_FALLBACK_MODEL);
+  assert.equal(settings.cardModel, "gemini-3.5-flash-lite");
+  assert.equal(settings.fallbackModel, "gemini-3.5-flash-lite");
   assert.equal(settings.cardModel, DEFAULT_CARD_MODEL);
+  assert.equal(settings.fallbackModel, DEFAULT_FALLBACK_MODEL);
 });
 
 test("a schema 2 remote prompt is used", () => {

@@ -1,7 +1,10 @@
 import { CARD_SCHEMA_VERSION, LETTER_TYPES, SENDER_KINDS } from "./schema.js";
 
-/** Cloud model names bundled with the iOS v2 defaults. */
-export const DEFAULT_CARD_MODEL = "gemini-3.8-flash";
+/**
+ * Bundled cloud model. gemini-3.5-flash-lite is the free-tier default for both
+ * the card and the fallback. A published Remote Config value replaces either name.
+ */
+export const DEFAULT_CARD_MODEL = "gemini-3.5-flash-lite";
 export const DEFAULT_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 /**

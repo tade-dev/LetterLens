@@ -65,7 +65,7 @@ The prompt, schema version, and model names are read from Firebase Remote Config
 | --- | --- |
 | `card_prompt` | Schema v2 prompt in `src/card/defaults.ts` |
 | `card_schema_version` | `2` |
-| `card_model` | `gemini-3.8-flash` |
+| `card_model` | `gemini-3.5-flash-lite` |
 | `fallback_model` | `gemini-3.5-flash-lite` |
 
 If Remote Config is still publishing schema 1, or it cannot be fetched, the built-in v2 prompt is used. The page says which one it is using. Live Remote Config is not changed by running this app.
