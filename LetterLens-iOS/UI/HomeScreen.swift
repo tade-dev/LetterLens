@@ -85,12 +85,12 @@ struct HomeScreen: View {
                 flow: preferences.unsupportedFlow(onDevice: availability),
                 availability: availability,
                 preferences: preferences,
-                opensImport: scanOpensImport,
                 onCardReady: { card, path, pageCount in
                     guard let card else { return }
                     finishedRead = LetterRead(card: card, path: path, pageCount: pageCount)
                     showLetter = true
-                }
+                },
+                opensImport: scanOpensImport
             )
             .navigationDestination(isPresented: $showLetter) {
                 if let finishedRead {
