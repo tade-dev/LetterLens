@@ -136,6 +136,7 @@ struct LetterHistoryTests {
     @Test func unreadableOCRDoesNotHandOffALetter() async {
         let progress = ReadingProgress(pagesTotal: 1, path: .device)
         var published = false
+        var failure: String?
         let read = await ScanReadingDriver.read(
             pages: [UIImage()],
             path: .device,
@@ -149,16 +150,19 @@ struct LetterHistoryTests {
                 return cardResult(ocrText: "unused", source: .onDevice, detailsRemoved: 0)
             },
             redactedDetailCount: { _ in 0 },
-            publish: { _ in published = true }
+            publish: { _ in published = true },
+            fail: { failure = $0 }
         )
         #expect(read == nil)
         #expect(published == false)
+        #expect(failure == "That file could not be read as a letter.")
         #expect(progress.phase == .failed)
         #expect(progress.card == nil)
     }
 
     @Test func aBlankPageDoesNotStoreALetter() async {
         let progress = ReadingProgress(pagesTotal: 1, path: .device)
+        var failure: String?
         let read = await ScanReadingDriver.read(
             pages: [UIImage()],
             path: .device,
@@ -172,9 +176,11 @@ struct LetterHistoryTests {
                 return cardResult(ocrText: "unused", source: .onDevice, detailsRemoved: 0)
             },
             redactedDetailCount: { _ in 0 },
-            publish: { _ in }
+            publish: { _ in },
+            fail: { failure = $0 }
         )
         #expect(read == nil)
+        #expect(failure == "No text was found on the page.")
         #expect(progress.phase == .failed)
     }
 

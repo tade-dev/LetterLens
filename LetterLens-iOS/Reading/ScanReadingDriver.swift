@@ -22,9 +22,11 @@ enum ScanReadingDriver {
         recognize: (UIImage) async throws -> String,
         readCard: (String) async throws -> CardReadResult,
         redactedDetailCount: (String) -> Int,
-        publish: (LetterRead) -> Void
+        publish: (LetterRead) -> Void,
+        fail: (String) -> Void = { _ in }
     ) async -> LetterRead? {
         guard pages.count == progress.pagesTotal, !pages.isEmpty else {
+            fail(ScanReadingFailure.unreadable)
             progress.apply(.failed)
             return nil
         }
@@ -43,6 +45,7 @@ enum ScanReadingDriver {
                 pageTexts.append("")
                 progress.apply(.pageOCRFinished(index: index))
             } catch {
+                fail(ScanReadingFailure.message(for: error))
                 progress.apply(.ocrFailed)
                 return nil
             }
@@ -52,6 +55,7 @@ enum ScanReadingDriver {
             .joined(separator: "\n\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !ocr.isEmpty else {
+            fail(ScanReadingFailure.noText)
             progress.apply(.failed)
             return nil
         }
@@ -61,6 +65,7 @@ enum ScanReadingDriver {
         }
         progress.apply(.cardingStarted)
         guard progress.phase == .carding else {
+            fail(ScanReadingFailure.unreadable)
             progress.apply(.failed)
             return nil
         }
@@ -71,6 +76,7 @@ enum ScanReadingDriver {
         } catch is CancellationError {
             return nil
         } catch {
+            fail(ScanReadingFailure.message(for: error))
             progress.apply(.failed)
             return nil
         }
@@ -93,6 +99,25 @@ enum ScanReadingDriver {
         guard !Task.isCancelled else { return nil }
         progress.validate(result.card)
         return progress.phase == .validated ? read : nil
+    }
+}
+
+/// Existing OCR and pipeline sentences. State 15 shows one of these.
+enum ScanReadingFailure {
+    static var noText: String {
+        TextRecognizer.Failure.noText.errorDescription ?? "No text was found on the page."
+    }
+
+    static var unreadable: String {
+        TextRecognizer.Failure.unreadable.errorDescription ?? "That file could not be read as a letter."
+    }
+
+    static func message(for error: Error) -> String {
+        if let described = (error as? LocalizedError)?.errorDescription, !described.isEmpty {
+            return described
+        }
+        let fallback = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        return fallback.isEmpty ? unreadable : fallback
     }
 }
 

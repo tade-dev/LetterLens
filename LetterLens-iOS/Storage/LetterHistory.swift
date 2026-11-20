@@ -34,11 +34,8 @@ enum LetterHistory {
         let text = draft.ocrText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return .refusedEmptyOCR }
 
-        let id = draft.id
-        let existing = try context.fetch(
-            FetchDescriptor<LetterRecord>(predicate: #Predicate { $0.id == id })
-        )
-        guard existing.isEmpty else { return .alreadyStored }
+        let stored = try context.fetch(FetchDescriptor<LetterRecord>())
+        guard !stored.contains(where: { $0.id == draft.id }) else { return .alreadyStored }
 
         let record = LetterRecord(
             id: draft.id,

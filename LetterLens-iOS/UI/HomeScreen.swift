@@ -158,6 +158,7 @@ struct HomeScreen: View {
             .plainListRow(insets: EdgeInsets(top: LLSpace.s, leading: LLSpace.screen, bottom: LLSpace.s, trailing: LLSpace.screen))
     }
 
+    /// TODO: State 12. No empty-state spec in the repo. This system view stays until Prism's copy.
     private var emptyRow: some View {
         ContentUnavailableView {
             Label("No letters yet", systemImage: "envelope")

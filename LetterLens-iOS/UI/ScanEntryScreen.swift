@@ -37,6 +37,7 @@ struct ScanEntryScreen: View {
     @State private var pages: [UIImage] = []
     @State private var readingProgress: ReadingProgress?
     @State private var showReading = false
+    @State private var showReadingFailed = false
     @State private var handoff = ScanHandoff()
     @State private var readingStarted = Date()
     @State private var showUnsupported = false
@@ -75,7 +76,9 @@ struct ScanEntryScreen: View {
             }
         }
         .navigationDestination(isPresented: $showReading) {
-            if let readingProgress {
+            if showReadingFailed {
+                ReadingFailedScreen(message: handoff.failureMessage ?? ScanReadingFailure.noText)
+            } else if let readingProgress {
                 readingDestination(progress: readingProgress)
             }
         }
@@ -189,6 +192,10 @@ struct ScanEntryScreen: View {
             publish: { read in
                 guard handoff.generation == generation else { return }
                 handoff.read = read
+            },
+            fail: { message in
+                guard handoff.generation == generation else { return }
+                handoff.failureMessage = message
             }
         )
     }
@@ -217,7 +224,14 @@ struct ScanEntryScreen: View {
                 else { return }
                 onCardReady(read)
             },
-            onReadingFailed: onReadingFailed
+            onReadingFailed: {
+                if handoff.generation == generation, handoff.failureMessage == nil {
+                    handoff.failureMessage = ScanReadingFailure.noText
+                }
+                guard handoff.generation == generation else { return }
+                showReadingFailed = true
+                onReadingFailed()
+            }
         )
     }
 
@@ -313,6 +327,8 @@ struct ScanEntryScreen: View {
         guard !images.isEmpty else { return }
         handoff.generation = UUID()
         handoff.read = nil
+        handoff.failureMessage = nil
+        showReadingFailed = false
         readingStarted = Date()
         pages = images
         pendingImages = []
@@ -347,10 +363,10 @@ private enum AfterUnsupportedSheet {
 }
 
 /// The scan id and the letter ready to store. A class so the reading task and the hand-off share it.
-@MainActor
 private final class ScanHandoff {
     var generation = UUID()
     var read: LetterRead?
+    var failureMessage: String?
 }
 
 #if DEBUG

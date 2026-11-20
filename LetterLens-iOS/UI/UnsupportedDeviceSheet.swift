@@ -5,6 +5,7 @@
 //  Screen 07 and state 17. Present with `.sheet` and detents. The system draws the
 //  glass sheet and the grabber; this view does not paint a sheet background.
 //  Buttons come only from `prompt.actions`, so state 17 has no cloud button.
+//  TODO: State 17 copy is still the placeholder. No replacement spec was in the repo.
 //
 //  A drag-down is a decline only when no button was pressed. `SheetChoiceRecord`
 //  keeps that decision. Allow, then dismiss, stays allowed. This view does not send anything.
