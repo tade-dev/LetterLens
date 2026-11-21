@@ -85,9 +85,14 @@ struct HomeScreen: View {
                 flow: preferences.unsupportedFlow(onDevice: availability),
                 availability: availability,
                 preferences: preferences,
-                onCardReady: { card, path, pageCount in
+                onCardReady: { card, path, pageCount, ocrText in
                     guard let card else { return }
-                    finishedRead = LetterRead(card: card, path: path, pageCount: pageCount)
+                    finishedRead = LetterRead(
+                        card: card,
+                        path: path,
+                        pageCount: pageCount,
+                        ocrText: ocrText
+                    )
                     showLetter = true
                 },
                 opensImport: scanOpensImport

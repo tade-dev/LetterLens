@@ -12,7 +12,7 @@ struct LetterRead: Equatable {
     var path: ReadingPath
     var pageCount: Int
     /// The scan's OCR text. Stored on `LetterRecord.ocrText`. Not a new field.
-    var ocrText: String = ""
+    var ocrText: String
 
     var fromLine: String {
         let sender = "From \(card.senderKind.title)"
