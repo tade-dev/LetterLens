@@ -67,6 +67,41 @@ import Testing
         #expect(result.text.hasSuffix(" [FUZZY]"))
         #expect(result.text.contains("[NAME_1]"))
     }
+
+    @Test func hyphenatedAndSlashedReferencesAreTokenised() {
+        let samples = ["WT-8841-QX", "AB/12345/C", "1234-ABCD"]
+        for sample in samples {
+            let result = redactor.redact("Code \(sample) today.")
+            #expect(!result.text.contains(sample))
+            #expect(result.text.contains("[REF_1]"))
+            #expect(result.map.original(for: "[REF_1]") == sample)
+        }
+        let labelled = redactor.redact("See REF 1234-ABCD today.")
+        #expect(labelled.map.original(for: "[REF_1]") == "1234-ABCD")
+        #expect(!labelled.text.contains("1234-ABCD"))
+    }
+
+    @Test func datesAmountsPostcodesAndPlainWordsAreNotReferences() {
+        let result = redactor.redact("Thank-you for £42.50 on 9 January 2027 at SW1A 1AA.")
+        #expect(result.text.contains("Thank-you"))
+        #expect(result.text.contains("£42.50"))
+        #expect(result.text.contains("9 January 2027"))
+        #expect(result.map.original(for: "[POSTCODE_1]") == "SW1A 1AA")
+        #expect(!result.text.contains("[REF_"))
+    }
+
+    @Test func aSeparatorBetweenRedactedSpansIsKeptAndRoundTrips() {
+        let newline = "ada@example.com\nSW1A 1AA"
+        let spaced = "WT-8841-QX SW1A 1AA"
+        let broken = redactor.redact(newline)
+        let beside = redactor.redact(spaced)
+        #expect(broken.text.contains("[EMAIL_1]\n[POSTCODE_1]"))
+        #expect(beside.text.contains("[REF_1] [POSTCODE_1]"))
+        #expect(!broken.text.contains("]["))
+        #expect(!beside.text.contains("]["))
+        #expect(broken.map.reinsert(into: broken.text) == newline)
+        #expect(beside.map.reinsert(into: beside.text) == spaced)
+    }
 }
 
 private struct AppendingPass: RedactionFuzzyPass {
