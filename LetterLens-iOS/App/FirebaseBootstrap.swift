@@ -14,6 +14,7 @@ import DeviceCheck
 
 enum LetterLensLog {
     static let firebase = Logger(subsystem: "com.tade.LetterLens-iOS", category: "Firebase")
+    static let pipeline = Logger(subsystem: "com.tade.LetterLens-iOS", category: "Pipeline")
 }
 
 /// Configures Firebase when `GoogleService-Info.plist` is in the app bundle.
