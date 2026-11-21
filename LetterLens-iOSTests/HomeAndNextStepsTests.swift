@@ -117,6 +117,7 @@ struct HomeAndNextStepsTests {
         )
         #expect(plan.script.contains("[NAME_1]"))
         #expect(plan.script.contains("[REF_1]"))
+        #expect(plan.madeInCloud == false)
         #expect(plan.steps.count == 4)
         #expect(plan.steps.contains { $0.detail == "I can't afford it this month" })
 
@@ -127,6 +128,7 @@ struct HomeAndNextStepsTests {
         )
         #expect(unnamed.script == "Hello. I'd like to talk about the letter I was sent.")
         #expect(!unnamed.script.contains("["))
+        #expect(unnamed.madeInCloud == false)
         #expect(unnamed.steps.count == 3)
     }
 

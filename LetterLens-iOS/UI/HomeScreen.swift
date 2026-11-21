@@ -403,6 +403,12 @@ struct HomeScreen: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
+            Text(LetterCopy.disclaimerShort)
+                .font(LLFont.caption)
+                .foregroundStyle(LLColor.inkSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, LLSpace.screen)
         .padding(.top, LLSpace.m)

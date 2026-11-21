@@ -19,6 +19,8 @@ struct NextStepsPlan: Equatable {
     var steps: [Step]
     /// May still contain redaction tokens. The screen puts the originals back locally.
     var script: String
+    /// True only after a planner that actually called the cloud. The local sample stays false.
+    var madeInCloud: Bool = false
 }
 
 protocol NextStepsPlanner {

@@ -164,6 +164,72 @@ struct LLDeadlineBlock: View {
     }
 }
 
+/// Amount block. Neutral only. The figure is the quote's own characters.
+struct LLAmountBlock: View {
+    let amount: String?
+    let quote: String?
+    var label: String = "Amount"
+    var showsFallback: Bool = true
+    var quoteOnly: Bool = false
+
+    var body: some View {
+        if quoteOnly, let quote {
+            VStack(alignment: .leading, spacing: LLSpace.s) {
+                LLSectionLabel(text: label)
+                Text(verbatim: "“\(quote)”")
+                    .font(LLFont.bodyL)
+                    .foregroundStyle(LLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("From the letter. Check it for the exact total.")
+                    .font(LLFont.body)
+                    .foregroundStyle(LLColor.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(LLSpace.card)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(label). From the letter: \(quote).")
+        } else if let amount, let quote {
+            VStack(alignment: .leading, spacing: LLSpace.s) {
+                LLSectionLabel(text: label)
+                Text(verbatim: amount)
+                    .font(LLFont.title.monospacedDigit())
+                    .foregroundStyle(LLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(LLColor.line)
+                Text(verbatim: "From the letter: “\(quote)”")
+                    .font(LLFont.quote)
+                    .foregroundStyle(LLColor.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(LLSpace.card)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(label), \(amount). From the letter: \(quote).")
+        } else if showsFallback {
+            VStack(alignment: .leading, spacing: LLSpace.s) {
+                LLSectionLabel(text: label)
+                Text("No amount found in this letter.")
+                    .font(LLFont.titleS)
+                    .foregroundStyle(LLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(LLColor.line)
+                Text("Check the letter for how much to pay.")
+                    .font(LLFont.body)
+                    .foregroundStyle(LLColor.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(LLSpace.card)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: LLRadius.card).stroke(LLColor.line))
+            .accessibilityElement(children: .combine)
+        }
+    }
+}
+
 struct LLPrimaryButtonStyle: ButtonStyle {
     var fill: Color = LLColor.ink   // LLColor.cloud ONLY on the cloud-consent sheet
     @ScaledMetric(relativeTo: .body) private var height = LLSize.primaryButton
