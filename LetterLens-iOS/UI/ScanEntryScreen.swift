@@ -20,12 +20,17 @@ struct ScanEntryScreen: View {
     var availability: OnDeviceReadingAvailability = .available
     var preferences: PrivacySettingsModel = PrivacySettingsModel(writesDefaults: false)
     /// `card` is nil when reading finishes before the pipeline stores one.
-    var onCardReady: (LetterCard?, ReadingPath, Int) -> Void = { _, _, _ in }
+    /// The string is the OCR text `ReadingProgress` recorded for this scan.
+    var onCardReady: (LetterCard?, ReadingPath, Int, String) -> Void = { _, _, _, _ in }
     var onReadingFailed: () -> Void = {}
+    /// Home's import button pushes Scan and opens the photo and PDF choices.
+    var opensImport = false
 
     @State private var showScanner = false
     @State private var showPhotos = false
     @State private var showPDF = false
+    @State private var showImportChoices = false
+    @State private var didOfferImport = false
     @State private var photoItem: PhotosPickerItem?
     @State private var pendingScan: [UIImage] = []
     @State private var pendingImages: [UIImage] = []
@@ -71,7 +76,12 @@ struct ScanEntryScreen: View {
                     pages: pages,
                     progress: readingProgress,
                     onCardReady: {
-                        onCardReady(readingProgress.card, readingProgress.path, pages.count)
+                        onCardReady(
+                            readingProgress.card,
+                            readingProgress.path,
+                            pages.count,
+                            readingProgress.ocrText
+                        )
                     },
                     onReadingFailed: onReadingFailed
                 )
@@ -119,6 +129,20 @@ struct ScanEntryScreen: View {
             .ignoresSafeArea()
         }
         .photosPicker(isPresented: $showPhotos, selection: $photoItem, matching: .images)
+        .confirmationDialog(
+            "Import a PDF or photo",
+            isPresented: $showImportChoices,
+            titleVisibility: .visible
+        ) {
+            Button("Choose a photo") { showPhotos = true }
+            Button("Import a PDF") { showPDF = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onAppear {
+            guard opensImport, !didOfferImport else { return }
+            didOfferImport = true
+            showImportChoices = true
+        }
         .fileImporter(
             isPresented: $showPDF,
             allowedContentTypes: [.pdf],
@@ -141,6 +165,33 @@ struct ScanEntryScreen: View {
         }
         .sensoryFeedback(.success, trigger: captureToken)
         .preferredColorScheme(.light)
+        .task(id: captureToken) {
+            await recognizeCapturedPages()
+        }
+    }
+
+    /// On-device OCR for the pages just opened. Nothing here is uploaded.
+    private func recognizeCapturedPages() async {
+        guard captureToken > 0, let progress = readingProgress else { return }
+        let images = pages
+        var parts: [String] = []
+        for image in images {
+            if Task.isCancelled { return }
+            guard let data = image.pngData() else { continue }
+            do {
+                let text = try await TextRecognizer.recognize(data: data)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    parts.append(text)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                continue
+            }
+        }
+        guard !Task.isCancelled, readingProgress === progress else { return }
+        progress.recordRecognizedText(parts.joined(separator: "\n\n"))
     }
 
     /// Spring into reading. Reduce Motion uses the same short fade as a page change.

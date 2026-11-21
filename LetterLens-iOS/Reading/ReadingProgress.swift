@@ -158,11 +158,18 @@ final class ReadingProgress: ReadingProgressSnapshot {
     /// The validated card. Screen 04 does not render it. RootView pushes 05 or 06
     /// from this value when reading finishes. Nil means the pipeline has not stored one.
     var card: LetterCard?
+    /// OCR text for this scan. Empty until `TextRecognizer` finishes.
+    private(set) var ocrText: String = ""
 
     init(pagesTotal: Int, path: ReadingPath) {
         precondition(pagesTotal > 0, "A letter has at least one page.")
         self.pagesTotal = pagesTotal
         self.path = path
+    }
+
+    /// Keeps the text `TextRecognizer` just read. The hand-off passes this to the card.
+    func recordRecognizedText(_ text: String) {
+        ocrText = text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Stores the card, then validates when the checklist is still in the carding phase.

@@ -23,6 +23,7 @@ enum LLColor {
     // Provenance. Use ONLY to say where a letter was read or planned.
     static let device       = Color("device")           // #0E7A5A
     static let deviceTint   = Color("deviceTint")       // #E6F4EE
+    static let deviceInk    = Color("deviceInk")        // #0B5E45  chip text, "details removed"
     static let deviceBright = Color("deviceBright")     // #3FC79A  logo lens on dark only
     static let cloud        = Color("cloud")            // #2D5BD7
     static let cloudTint    = Color("cloudTint")        // #E8EEFC

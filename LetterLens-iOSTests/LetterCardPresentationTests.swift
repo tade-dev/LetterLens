@@ -54,9 +54,16 @@ struct LetterCardPresentationTests {
         card.senderKind = .council
         card.type = .reminder
         #expect(card.displayTitle == "Council tax · Reminder")
-        let read = LetterRead(card: card, path: .device, pageCount: 2)
+        let read = LetterRead(card: card, path: .device, pageCount: 2, ocrText: "")
         #expect(read.fromLine == "From Council tax · 2 pages")
-        #expect(LetterRead(card: card, path: .cloud, pageCount: 1).fromLine == "From Council tax · 1 page")
+        #expect(LetterRead(card: card, path: .cloud, pageCount: 1, ocrText: "").fromLine == "From Council tax · 1 page")
+    }
+
+    @Test func aStoredLetterDoesNotInventAPageCount() {
+        var card = LetterCard.empty
+        card.senderKind = .council
+        #expect(LetterRead(card: card, path: .device, pageCount: 0, ocrText: "").fromLine == "From Council tax")
+        #expect(LetterRead(card: card, path: .cloud, pageCount: -1, ocrText: "").fromLine == "From Council tax")
     }
 
     @Test func onlyPaymentTypesShowTheAmountRow() {

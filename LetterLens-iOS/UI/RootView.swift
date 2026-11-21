@@ -2,11 +2,10 @@
 //  RootView.swift
 //  LetterLens-iOS
 //
-//  First launch shows Welcome, then pushes Scan. Later launches open Scan.
-//  Privacy is the gear on Scan. The unsupported-device sheet follows
-//  `UnsupportedDeviceFlow` when a photo or PDF is ready to read.
-//  When reading finishes with a card, a scam sign pushes screen 06.
-//  Any other card pushes screen 05. `-LLHarness` stays on the app entry.
+//  First launch shows Welcome, then pushes Home. Later launches open Home.
+//  Home pushes Scan, Settings, and a stored letter (05 or 06).
+//  Scan pushes Reading, then 05 or 06. Plan next steps pushes 08, then 09.
+//  `-LLHarness` stays on the app entry.
 
 import SwiftUI
 #if canImport(FoundationModels)
@@ -16,24 +15,23 @@ import FoundationModels
 struct RootView: View {
     @AppStorage("ll.hasSeenWelcome") private var hasSeenWelcome = false
     /// Stays true for this session so marking Welcome seen does not swap the root mid-push.
-    @State private var continueToScan = false
+    @State private var continueToHome = false
     @State private var preferences = PrivacySettingsModel()
     @State private var availability: OnDeviceReadingAvailability = .unavailable
-    @State private var finishedRead: LetterRead?
-    @State private var showLetter = false
+    @State private var completion = LetterCompletion()
 
     var body: some View {
         NavigationStack {
-            if hasSeenWelcome && !continueToScan {
-                scan
+            if hasSeenWelcome && !continueToHome {
+                home
             } else {
                 WelcomeScreen {
                     hasSeenWelcome = true
-                    continueToScan = true
+                    continueToHome = true
                 }
                 .toolbar(.hidden, for: .navigationBar)
-                .navigationDestination(isPresented: $continueToScan) {
-                    scan
+                .navigationDestination(isPresented: $continueToHome) {
+                    home
                 }
             }
         }
@@ -43,30 +41,12 @@ struct RootView: View {
         }
     }
 
-    private var scan: some View {
-        ScanEntryScreen(
-            flow: preferences.unsupportedFlow(onDevice: availability),
-            availability: availability,
+    private var home: some View {
+        HomeScreen(
             preferences: preferences,
-            onCardReady: { card, path, pageCount in
-                guard let card else { return }
-                finishedRead = LetterRead(card: card, path: path, pageCount: pageCount)
-                showLetter = true
-            }
+            availability: availability,
+            completion: completion
         )
-        .navigationDestination(isPresented: $showLetter) {
-            if let finishedRead {
-                if finishedRead.card.opensScamWarning {
-                    ScamWarningScreen(card: finishedRead.card, path: finishedRead.path)
-                } else {
-                    LetterCardScreen(
-                        card: finishedRead.card,
-                        path: finishedRead.path,
-                        pageCount: finishedRead.pageCount
-                    )
-                }
-            }
-        }
     }
 }
 

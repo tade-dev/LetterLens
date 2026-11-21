@@ -11,10 +11,15 @@ struct LetterRead: Equatable {
     var card: LetterCard
     var path: ReadingPath
     var pageCount: Int
+    /// The scan's OCR text. Stored on `LetterRecord.ocrText`. Not a new field.
+    var ocrText: String
 
     var fromLine: String {
+        let sender = "From \(card.senderKind.title)"
+        // Stored letters do not keep a page count. Zero must not pretend there was one page.
+        guard pageCount > 0 else { return sender }
         let pages = pageCount == 1 ? "1 page" : "\(pageCount) pages"
-        return "From \(card.senderKind.title) · \(pages)"
+        return "\(sender) · \(pages)"
     }
 }
 
