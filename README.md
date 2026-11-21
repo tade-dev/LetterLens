@@ -41,10 +41,15 @@ Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys m
 
 ## Scan to card
 
-The debug screen (the app's current UI) scans a letter with VisionKit, imports a photo or PDF, or pastes text. OCR stays on device (`RecognizeDocumentsRequest`, falling back to `VNRecognizeTextRequest`). The card prompt comes from `AppConfig`. Inference goes through Firebase AI Logic.
+`RootView` opens Welcome on a first launch, then Home. Home pushes Scan, Privacy settings, and any stored letter. Scan takes a letter from VisionKit's document camera, a photo, or a PDF, and pushes the reading screen, which lands on the letter card or the scam warning. The card's **Plan next steps** pushes what-gets-sent, then the plan.
 
-- **Never upload** off, and **Allow cloud fallback** off: on-device only, full OCR text, no network for the letter. If the system model is unavailable, the screen says it can't read privately on this iPhone.
-- **Allow cloud fallback** on: a sheet shows the redacted text and how many details were removed. Nothing is uploaded until you tap Send. The session is a `HybridModel` (on-device first, cloud model from `card_model` as the fallback) or cloud-only when the system model is unavailable. Only the redacted text is in the prompt. Tokens such as `[NAME_1]` are filled back in on device before the quote check.
+OCR stays on device (`RecognizeDocumentsRequest`, falling back to `VNRecognizeTextRequest`). The card prompt comes from `AppConfig`. Inference goes through Firebase AI Logic.
+
+**Never upload** is the only privacy switch, and it is off by default.
+
+- **Never upload on:** on-device only, full OCR text, no network for the letter. Nothing is ever sent, and **Plan next steps** is turned off. If the system model is unavailable, the app says it can't read privately on this iPhone and stops.
+- **Never upload off:** a letter is still read on device first. Only when that is unavailable or fails does a sheet offer the cloud, and it asks before every cloud read. The sheet shows the redacted text and how many details were removed; nothing is uploaded until you tap Send. The session is a `HybridModel` (on-device first, cloud model from `card_model` as the fallback) or cloud-only when the system model is unavailable. Only the redacted text is in the prompt. Tokens such as `[NAME_1]` are filled back in on device before the quote check.
+- A plan is always a cloud call, so Never upload blocks it. With the switch off, what-gets-sent still asks first.
 - Photos are not sent. The saved history is the OCR text and the card, in a local SwiftData store.
 
 The badge is **Read on this iPhone** or **Read in the cloud**, from `response.rawResponse.modelVersion`. On-device is reported as `apple-foundation-models-system-language-model`.

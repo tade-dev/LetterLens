@@ -23,9 +23,11 @@
     {
       "kind": "folder",
       "path": "LetterLens-iOS",
-      "target-membership": [ "LetterLens-iOS" ],
       "opaque-folders": [
         "Fonts",
+      ],
+      "target-membership": [
+        "LetterLens-iOS",
       ],
       "membership-exceptions": [
         {
@@ -62,13 +64,11 @@
           "package": "firebase-ios-sdk",
           "product-name": "FirebaseAILogic",
           "build-phase": { "build-phase": "frameworks" },
-        },
-        {
+        }, {
           "package": "firebase-ios-sdk",
           "product-name": "FirebaseAppCheck",
           "build-phase": { "build-phase": "frameworks" },
-        },
-        {
+        }, {
           "package": "firebase-ios-sdk",
           "product-name": "FirebaseRemoteConfig",
           "build-phase": { "build-phase": "frameworks" },
@@ -108,8 +108,7 @@
         "SWIFT_VERSION": "5.0",
         "TARGETED_DEVICE_FAMILY": "1,2",
       },
-    },
-    {
+    }, {
       "name": "LetterLens-iOSTests",
       "id": "C4E8B1A07D2F49A6B3C5D7E2",
       "product": "Products/LetterLens-iOSTests.xctest",

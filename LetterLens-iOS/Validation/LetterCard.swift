@@ -148,7 +148,7 @@ struct ScamSign: Equatable {
     var quote: String?
 }
 
-extension LetterCard: Codable {
+nonisolated extension LetterCard: Codable {
     enum CodingKeys: String, CodingKey {
         case type
         case senderKind = "sender_kind"
@@ -200,7 +200,7 @@ extension LetterCard: Codable {
     }
 }
 
-extension ScamSign: Codable {
+nonisolated extension ScamSign: Codable {
     enum CodingKeys: String, CodingKey {
         case sign
         case quote
