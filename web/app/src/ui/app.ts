@@ -336,10 +336,7 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
   host.hidden = false;
   host.replaceChildren();
   const badge = el("p", { className: place === "on_device" ? "badge badge-device" : "badge badge-cloud" });
-  badge.textContent =
-    place === "on_device"
-      ? "Read on this device. The letter stayed on this computer."
-      : "Read in the cloud. You agreed to send the redacted text.";
+  badge.textContent = place === "on_device" ? "Read on this device" : "Read in the cloud";
   const title = el("h2");
   title.tabIndex = -1;
   title.textContent = displayTitle(card);
@@ -596,7 +593,7 @@ function buildShell(): Shell {
   const footer = el("footer");
   const promptSource = el("p");
   const honesty = el("p");
-  honesty.textContent = "LetterLens does not decide that a letter is genuine. It shows signs to check.";
+  honesty.textContent = "Explains letters. Not legal or financial advice.";
   footer.append(promptSource, honesty);
 
   const dialog = document.createElement("dialog");
