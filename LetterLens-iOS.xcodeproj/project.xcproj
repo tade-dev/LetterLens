@@ -55,6 +55,22 @@
       "product": "Products/LetterLens-iOS.app",
       "product-type": "application",
       "build-phases": [
+        {
+          "kind": "script",
+          "name": "Check GoogleService-Info.plist",
+          "input-paths": [
+            "$(SRCROOT)/LetterLens-iOS/GoogleService-Info.plist",
+            "$(SRCROOT)/LetterLens-iOS",
+          ],
+          "run-on-every-build": true,
+          "shell": "/bin/sh",
+          "script": [
+            "plist=\"${SRCROOT}/LetterLens-iOS/GoogleService-Info.plist\"",
+            "if [ ! -f \"${plist}\" ]; then",
+            "  echo \"warning: GoogleService-Info.plist is missing, so Firebase is not configured and no cloud read will work. Put it in LetterLens-iOS/ (it is gitignored); see README. On-device reading still works.\"",
+            "fi",
+          ],
+        },
         "compile-sources",
         "frameworks",
         "resources",
