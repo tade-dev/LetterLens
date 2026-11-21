@@ -4,6 +4,8 @@ LetterLens explains confusing UK official letters (HMRC, council, bank, benefits
 
 Built for #BuildHybridAI. Inference goes through Firebase AI Logic, on-device first. Photos and unredacted personal details stay on the device.
 
+There is also a Chrome web app in [web/app](web/app/README.md). It reads on device with Gemini Nano, takes pasted text or a `.txt` file rather than a photo, and sends a redacted letter to the cloud only after you agree to that exact text. [web/nano-spike](web/nano-spike/README.md) is the throwaway page the Prompt API behaviour was worked out on.
+
 ## Requirements
 
 - Xcode 27
