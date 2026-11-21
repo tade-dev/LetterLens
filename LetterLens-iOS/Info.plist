@@ -2,6 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.tade.LetterLens-iOS</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>letterlens</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>LetterLens uses the camera to scan a letter. The photo is read on this iPhone and is not uploaded.</string>
 	<key>UIAppFonts</key>

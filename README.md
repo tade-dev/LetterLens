@@ -72,6 +72,16 @@ OCR stays on device (`RecognizeDocumentsRequest`, falling back to `VNRecognizeTe
 
 The badge is **Read on this iPhone** or **Read in the cloud**, from `response.rawResponse.modelVersion`. On-device is reported as `apple-foundation-models-system-language-model`.
 
+## Share sheet
+
+`LetterLensShare` is a Share Extension. Sharing a photo or PDF from Mail, Files or Photos offers **LetterLens**, and the letter opens in the reading screen.
+
+The extension does not read anything. It has no Firebase, no model and no OCR: it copies the bytes into the App Group container (`group.com.tade.LetterLens-iOS`) and finishes. The app drains that inbox whenever Home is on screen, renders the pages, and runs the same pipeline a camera scan runs, so every privacy rule stays in one place.
+
+`NSExtensionContext.open` asks iOS to bring the app forward. That request is allowed to fail: the inbox is the contract, so a share still arrives the next time the app is opened. Both targets need the App Group in their entitlements; `Shared/SharedInbox.swift` is the only file compiled into both.
+
+The app target sets `ENABLE_USER_SCRIPT_SANDBOXING = NO`, which the project otherwise leaves on. The `Embed LetterLensShare` script phase copies the built `.appex` into `PlugIns`, and the script sandbox blocks a phase from reading another target's product. Xcode's own embed phase has no spelling in the Xcode 27 JSON project format that we could find; adding the target through Xcode's UI would write one, and this setting can go back to `YES` the moment it does.
+
 ## App icon
 
 `AppIcon.appiconset` holds the light, dark and tinted 1024s. They are generated, not hand-drawn: `scripts/make-app-icon.swift` redraws the `LetterLensLogo` geometry at 1024 so the icon and the in-app mark cannot drift apart.

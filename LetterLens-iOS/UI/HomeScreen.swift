@@ -19,10 +19,13 @@ struct HomeScreen: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @Namespace private var letterZoom
 
     @State private var showScan = false
     @State private var scanOpensImport = false
+    /// Pages the share extension left in the App Group inbox.
+    @State private var sharedPages: [UIImage] = []
     @State private var showPrivacy = false
     @State private var openedID: UUID?
     @State private var finishedRead: LetterRead?
@@ -80,6 +83,10 @@ struct HomeScreen: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             scanBar
         }
+        .task { openSharedLetter() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { openSharedLetter() }
+        }
         .navigationDestination(isPresented: $showScan) {
             ScanEntryScreen(
                 flow: preferences.unsupportedFlow(onDevice: availability),
@@ -91,7 +98,8 @@ struct HomeScreen: View {
                     finishedRead = read
                     showLetter = true
                 },
-                opensImport: scanOpensImport
+                opensImport: scanOpensImport,
+                sharedPages: sharedPages
             )
             .navigationDestination(isPresented: $showLetter) {
                 if let finishedRead {
@@ -478,7 +486,22 @@ struct HomeScreen: View {
         }
     }
 
+    /// A letter shared from Mail, Files or Photos. The inbox is drained whenever
+    /// Home is on screen, so a share still arrives when opening the app was refused
+    /// or the app was already running.
+    private func openSharedLetter() {
+        guard !showScan else { return }
+        let pages = SharedLetterPages.drain()
+        guard !pages.isEmpty else { return }
+        sharedPages = pages
+        scanOpensImport = false
+        finishedRead = nil
+        showLetter = false
+        showScan = true
+    }
+
     private func openScan(importOptions: Bool) {
+        sharedPages = []
         scanOpensImport = importOptions
         finishedRead = nil
         showLetter = false
