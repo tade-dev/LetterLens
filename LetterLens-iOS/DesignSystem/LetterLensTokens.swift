@@ -78,8 +78,10 @@ enum LLRadius {
 
 enum LLSize {
     static let touchMin: CGFloat = 44
-    static let primaryButton: CGFloat = 56
-    static let secondaryButton: CGFloat = 52
+    /// System large control. Was 56, which plus glass padding became about 100pt.
+    static let primaryButton: CGFloat = 50
+    /// System large control. Was 52.
+    static let secondaryButton: CGFloat = 50
     static let heroButton: CGFloat = 60   // Home "Scan a letter" only
 }
 
