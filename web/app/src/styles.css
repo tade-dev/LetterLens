@@ -205,6 +205,62 @@ progress {
 
 .deadline { font-family: var(--serif); font-size: 1.7rem; margin: 0; }
 
+.fact {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+}
+
+.amount-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.amount-figure {
+  margin: 0.25rem 0 0;
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.amount-rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0.75rem 0;
+}
+
+.amount-caption,
+.amount-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.amount-quote {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.amount-missing {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+}
+
+.amount-sub { margin-top: 0.25rem; }
+
 blockquote {
   margin: 0.4rem 0 0;
   padding-left: 0.85rem;

@@ -1,4 +1,5 @@
 import { fillPrompt } from "../card/defaults.js";
+import { showsAmount, extractAmountFigure } from "../card/amount.js";
 import { formatIsoDate } from "../card/dates.js";
 import { displayTitle, type LetterCard } from "../card/schema.js";
 import { resolveCardSettings, type CardSettings } from "../card/settings.js";
@@ -352,7 +353,10 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
 
   host.append(section("What you need to do", card.action || "The letter does not say."));
 
-  const deadline = el("section");
+  const amount = amountRow(card);
+  if (amount) host.append(amount);
+
+  const deadline = el("section", { className: "fact" });
   deadline.append(heading("Deadline"));
   if (card.deadline && card.deadlineQuote) {
     const when = el("p", { className: "deadline" });
@@ -366,8 +370,6 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
     deadline.append(none);
   }
   host.append(deadline);
-
-  if (card.amountQuote) host.append(section("Amount, in the letter's words", card.amountQuote));
 
   if (card.watchOuts.length > 0) {
     const watch = el("section");
@@ -406,6 +408,46 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
     : "Card schema version 2.";
   host.append(meta);
   title.focus();
+}
+
+function amountRow(card: LetterCard): HTMLElement | null {
+  if (!showsAmount(card.type)) return null;
+  const quote = card.amountQuote;
+  const figure = quote ? extractAmountFigure(quote) : null;
+  if (quote && figure) {
+    return amountBlock(
+      `Amount, ${figure}. From the letter: ${quote}.`,
+      el("p", { className: "amount-label" }, "AMOUNT"),
+      el("p", { className: "amount-figure" }, figure),
+      el("hr", { className: "amount-rule" }),
+      el("p", { className: "amount-caption" }, `From the letter: “${quote}”`),
+    );
+  }
+  if (quote) {
+    return amountBlock(
+      `Amount. From the letter: ${quote}.`,
+      el("p", { className: "amount-label" }, "AMOUNT"),
+      el("p", { className: "amount-quote" }, `“${quote}”`),
+      el("p", { className: "amount-caption" }, "From the letter. Check it for the exact total."),
+    );
+  }
+  return amountBlock(
+    "No amount found in this letter. Check the letter for how much to pay.",
+    el("p", { className: "amount-label" }, "AMOUNT"),
+    el("p", { className: "amount-missing" }, "No amount found in this letter."),
+    el("p", { className: "amount-sub" }, "Check the letter for how much to pay."),
+  );
+}
+
+function amountBlock(label: string, ...visual: HTMLElement[]): HTMLElement {
+  const block = el("section", { className: "fact amount" });
+  block.setAttribute("role", "group");
+  block.setAttribute("aria-label", label);
+  const shown = el("div");
+  shown.setAttribute("aria-hidden", "true");
+  shown.append(...visual);
+  block.append(shown);
+  return block;
 }
 
 function section(label: string, text: string): HTMLElement {
@@ -614,12 +656,13 @@ function button(id: string, label: string, type: "button" | "submit"): HTMLButto
   return node;
 }
 
-function el(tag: string, attrs: Record<string, string> = {}): HTMLElement {
+function el(tag: string, attrs: Record<string, string> = {}, text?: string): HTMLElement {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     if (key === "className") node.className = value;
     else if (key === "hidden") node.hidden = value === "true";
     else node.setAttribute(key, value);
   }
+  if (text !== undefined) node.textContent = text;
   return node;
 }
