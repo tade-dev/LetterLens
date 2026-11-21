@@ -36,6 +36,7 @@ enum LLColor {
     // Warning. Use ONLY for "Signs to check", penalties, and destructive actions.
     static let warning     = Color("warning")           // #B42318
     static let warningTint = Color("warningTint")       // #FDECEA
+    static let warningOn   = Color("warningOn")         // #FCE3E0  text on the warning fill
 }
 
 // MARK: - Type
@@ -73,7 +74,7 @@ enum LLSpace {
 
 enum LLRadius {
     static let iconButton: CGFloat = 12, tile: CGFloat = 14, button: CGFloat = 16
-    static let card: CGFloat = 18, panel: CGFloat = 24, sheet: CGFloat = 28
+    static let card: CGFloat = 18, warningCard: CGFloat = 20, panel: CGFloat = 24, sheet: CGFloat = 28
 }
 
 enum LLSize {
@@ -89,10 +90,12 @@ enum LLSize {
 
 struct LLSectionLabel: View {
     let text: String
+    var color: Color = LLColor.inkSecondary
+
     var body: some View {
         Text(text.uppercased())
             .font(LLFont.label).tracking(0.6)
-            .foregroundStyle(LLColor.inkSecondary)
+            .foregroundStyle(color)
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -156,6 +159,72 @@ struct LLDeadlineBlock: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
             .overlay(RoundedRectangle(cornerRadius: LLRadius.card).stroke(LLColor.line))
+        }
+    }
+}
+
+/// Amount block. Neutral only. The figure is the quote's own characters.
+struct LLAmountBlock: View {
+    let amount: String?
+    let quote: String?
+    var label: String = "Amount"
+    var showsFallback: Bool = true
+    var quoteOnly: Bool = false
+
+    var body: some View {
+        if quoteOnly, let quote {
+            VStack(alignment: .leading, spacing: LLSpace.s) {
+                LLSectionLabel(text: label)
+                Text(verbatim: "“\(quote)”")
+                    .font(LLFont.bodyL)
+                    .foregroundStyle(LLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("From the letter. Check it for the exact total.")
+                    .font(LLFont.body)
+                    .foregroundStyle(LLColor.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(LLSpace.card)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(label). From the letter: \(quote).")
+        } else if let amount, let quote {
+            VStack(alignment: .leading, spacing: LLSpace.s) {
+                LLSectionLabel(text: label)
+                Text(verbatim: amount)
+                    .font(LLFont.title.monospacedDigit())
+                    .foregroundStyle(LLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(LLColor.line)
+                Text(verbatim: "From the letter: “\(quote)”")
+                    .font(LLFont.quote)
+                    .foregroundStyle(LLColor.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(LLSpace.card)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(label), \(amount). From the letter: \(quote).")
+        } else if showsFallback {
+            VStack(alignment: .leading, spacing: LLSpace.s) {
+                LLSectionLabel(text: label)
+                Text("No amount found in this letter.")
+                    .font(LLFont.titleS)
+                    .foregroundStyle(LLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(LLColor.line)
+                Text("Check the letter for how much to pay.")
+                    .font(LLFont.body)
+                    .foregroundStyle(LLColor.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(LLSpace.card)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+            .overlay(RoundedRectangle(cornerRadius: LLRadius.card).stroke(LLColor.line))
+            .accessibilityElement(children: .combine)
         }
     }
 }
