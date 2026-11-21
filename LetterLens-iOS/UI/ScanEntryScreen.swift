@@ -24,12 +24,15 @@ struct ScanEntryScreen: View {
     var onReadingFailed: () -> Void = {}
     /// Home's import button pushes Scan and opens the photo and PDF choices.
     var opensImport = false
+    /// Pages handed over by the share extension. Non-empty means go straight to reading.
+    var sharedPages: [UIImage] = []
 
     @State private var showScanner = false
     @State private var showPhotos = false
     @State private var showPDF = false
     @State private var showImportChoices = false
     @State private var didOfferImport = false
+    @State private var didOpenShared = false
     @State private var photoItem: PhotosPickerItem?
     @State private var pendingScan: [UIImage] = []
     @State private var pendingImages: [UIImage] = []
@@ -132,6 +135,11 @@ struct ScanEntryScreen: View {
             Button("Cancel", role: .cancel) {}
         }
         .onAppear {
+            if !sharedPages.isEmpty, !didOpenShared {
+                didOpenShared = true
+                openReading(sharedPages)
+                return
+            }
             guard opensImport, !didOfferImport else { return }
             didOfferImport = true
             showImportChoices = true

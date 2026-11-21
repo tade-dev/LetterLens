@@ -34,17 +34,42 @@
           "target": "LetterLens-iOS",
           "exclusions": [
             "Info.plist",
+            "LetterLens-iOS.entitlements",
           ],
         },
       ],
     },
+    {
+      "kind": "folder",
+      "path": "Shared",
+      "target-membership": [
+        "LetterLens-iOS",
+        "LetterLensShare",
+      ],
+    },
     { "kind": "folder", "path": "LetterLens-iOSTests", "target-membership": [ "LetterLens-iOSTests" ] },
     {
+      "kind": "folder",
+      "path": "LetterLensShare",
+      "target-membership": [
+        "LetterLensShare",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "LetterLensShare",
+          "exclusions": [
+            "Info.plist",
+            "LetterLensShare.entitlements",
+          ],
+        },
+      ],
+    }, {
       "kind": "group",
       "name": "Products",
       "children": [
         { "path": "<PRODUCTS>/LetterLens-iOS.app", "id": "1E2712F730A5A7F1009D40AE", "type": "wrapper.application", "index": false },
         { "path": "<PRODUCTS>/LetterLens-iOSTests.xctest", "id": "C4E8B1A07D2F49A6B3C5D7E1", "type": "wrapper.cfbundle", "index": false },
+        { "path": "<PRODUCTS>/LetterLensShare.appex", "id": "D1A2B3C4E5F60718293A4B5C", "type": "wrapper.app-extension", "index": false },
       ],
     },
   ],
@@ -54,6 +79,9 @@
       "id": "1E2712F630A5A7F1009D40AE",
       "product": "Products/LetterLens-iOS.app",
       "product-type": "application",
+      "dependencies": [
+        "LetterLensShare",
+      ],
       "build-phases": [
         {
           "kind": "script",
@@ -74,6 +102,39 @@
         "compile-sources",
         "frameworks",
         "resources",
+        {
+          "kind": "script",
+          "name": "Embed LetterLensShare",
+          "input-paths": [
+            "$(BUILT_PRODUCTS_DIR)/LetterLensShare.appex",
+          ],
+          "output-paths": [
+            "$(BUILT_PRODUCTS_DIR)/$(PLUGINS_FOLDER_PATH)/LetterLensShare.appex",
+          ],
+          "shell": "/bin/sh",
+          "script": [
+            "set -e",
+            "src=\"${BUILT_PRODUCTS_DIR}/LetterLensShare.appex\"",
+            "dst=\"${BUILT_PRODUCTS_DIR}/${PLUGINS_FOLDER_PATH}\"",
+            "if [ ! -d \"${src}\" ]; then",
+            "  echo \"error: LetterLensShare.appex was not built. The share sheet entry needs it.\"",
+            "  exit 1",
+            "fi",
+            "mkdir -p \"${dst}\"",
+            "rm -rf \"${dst}/LetterLensShare.appex\"",
+            "cp -R \"${src}\" \"${dst}/\"",
+            "# Simulator builds are unsigned. A device build signs the copy with the",
+            "# entitlements Xcode already processed for the extension target.",
+            "if [ \"${CODE_SIGNING_REQUIRED}\" = \"YES\" ] && [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ] && [ \"${EXPANDED_CODE_SIGN_IDENTITY}\" != \"-\" ]; then",
+            "  xcent=\"${CONFIGURATION_TEMP_DIR}/LetterLensShare.build/LetterLensShare.app-extension.xcent\"",
+            "  if [ -f \"${xcent}\" ]; then",
+            "    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --entitlements \"${xcent}\" \"${dst}/LetterLensShare.appex\"",
+            "  else",
+            "    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" \"${dst}/LetterLensShare.appex\"",
+            "  fi",
+            "fi",
+          ],
+        },
       ],
       "package-product-members": [
         {
@@ -92,6 +153,8 @@
       ],
       "build-settings": {
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+        "CODE_SIGN_ENTITLEMENTS": "LetterLens-iOS/LetterLens-iOS.entitlements",
+        "ENABLE_USER_SCRIPT_SANDBOXING": "NO",
         "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
@@ -161,6 +224,42 @@
         "SWIFT_VERSION": "5.0",
         "TARGETED_DEVICE_FAMILY": "1,2",
         "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/LetterLens-iOS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LetterLens-iOS",
+      },
+    }, {
+      "name": "LetterLensShare",
+      "id": "D1A2B3C4E5F60718293A4B5D",
+      "product": "Products/LetterLensShare.appex",
+      "product-type": "app-extension",
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "CODE_SIGN_ENTITLEMENTS": "LetterLensShare/LetterLensShare.entitlements",
+        "CODE_SIGN_STYLE": "Automatic",
+        "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_TEAM": "TU566926VK",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_FILE": "LetterLensShare/Info.plist",
+        "INFOPLIST_KEY_CFBundleDisplayName": "LetterLens",
+        "IPHONEOS_DEPLOYMENT_TARGET": "26.0",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+          "@executable_path/../../Frameworks",
+        ],
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.tade.LetterLens-iOS.Share",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SWIFT_APPROACHABLE_CONCURRENCY": "YES",
+        "SWIFT_DEFAULT_ACTOR_ISOLATION": "MainActor",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY": "YES",
+        "SWIFT_VERSION": "5.0",
+        "TARGETED_DEVICE_FAMILY": "1,2",
       },
     },
   ],
