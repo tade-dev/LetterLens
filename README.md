@@ -18,9 +18,12 @@ The file is gitignored because this repository is public. The app still compiles
 
 Xcode 27's JSON project format has no optional-resource attribute. A permanent file reference to a missing plist would fail the Copy Bundle Resources phase in CI. `LetterLens-iOS` is a synchronized folder (`kind: folder` in `project.xcproj`), so the file joins the LetterLens-iOS target on its own once it is present.
 
-1. In the Firebase console, register the iOS app (`com.tade.LetterLens-iOS`) and download `GoogleService-Info.plist`.
-2. Put that file in `LetterLens-iOS/` (next to `LetterLens_iOSApp.swift`).
-3. Rebuild. Do not commit the plist.
+1. Create a Firebase project. Google Analytics can stay off. Register an iOS app with the bundle ID `com.tade.LetterLens-iOS` (`PRODUCT_BUNDLE_IDENTIFIER` in `LetterLens-iOS.xcodeproj/project.xcproj`).
+2. In the console open **AI Services → AI Logic**, click **Get started**, and choose the **Gemini Developer API**. The app builds and reads on device without this step, then fails every cloud call, so do it before the first cloud read. Leave the project on the no-cost Spark plan, with no Cloud Billing account.
+3. Download `GoogleService-Info.plist` for that iOS app and put it in `LetterLens-iOS/` (next to `LetterLens_iOSApp.swift`).
+4. Rebuild. Do not commit the plist.
+
+On the device, Firebase AI Logic is Apple Foundation Models (`FirebaseAI.SystemLanguageModel`). In the cloud it is the Gemini Developer API, `FirebaseAI.firebaseAI(backend: .googleAI())`. When a cloud read is allowed, the card session is a `HybridModel`: the system model is primary, and the Gemini model named by `card_model` is secondary.
 
 ## App Check debug token
 
@@ -37,7 +40,22 @@ The debug token is not in the repo. To pin one locally:
 
 ## Remote Config
 
-Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (2), `card_model` and `plan_model` (both `gemini-3.8-flash`), and `fallback_model` (`gemini-3.5-flash-lite`). The first cloud HTTP 429 or 503 moves later attempts onto `fallback_model` when that name is set. An empty name skips the switch. A letter gets at most three cloud attempts; 400, 401, and 403 stop immediately. `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties. Live Remote Config is deployed separately.
+Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (2), `card_model` and `plan_model` (both `gemini-3.8-flash`), and `fallback_model` (`gemini-3.5-flash-lite`). The first cloud HTTP 429 or 503 moves later attempts onto `fallback_model` when that name is set. An empty name skips the switch. A letter gets at most three cloud attempts; 400, 401, and 403 stop immediately. `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties.
+
+Live Remote Config is deployed separately. From the repo root, `firebase.json` publishes `firebase/remoteconfig.template.json`:
+
+```bash
+firebase login
+firebase use <project-id>
+firebase deploy --only remoteconfig
+firebase remoteconfig:get
+```
+
+`firebase login` opens a browser so you sign in yourself. Pass your own project id to `firebase use`; that command rewrites `.firebaserc`, so leave the committed file as it is. `firebase remoteconfig:get` prints the template now live on the project. Publishing replaces the whole template.
+
+Skipping this is fine. The app reads the bundled defaults at launch, so it still runs with no live template, no plist, or a failed `fetchAndActivate()`.
+
+The Gemini Developer API free tier caps requests per minute, and crossing a cap returns HTTP 429. That is the case `fallback_model` exists for.
 
 ## Scan to card
 
