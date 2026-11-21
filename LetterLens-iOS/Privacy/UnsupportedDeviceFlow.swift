@@ -3,8 +3,8 @@
 //  LetterLens-iOS
 //
 //  Which sheet to show when this iPhone cannot read a letter on device.
-//  `ll.allowCloudFallback` on means screen 07, and we ask on every letter.
-//  The switch off, or Never upload, means state 17. No cloud button, nothing is sent.
+//  Never upload off means screen 07, and we ask before every cloud read.
+//  Never upload on means state 17. No cloud button, nothing is sent.
 //  No network call lives here. The view only offers the actions this type returns.
 
 import Foundation
@@ -12,16 +12,10 @@ import Foundation
 enum UnsupportedDeviceRoute: Equatable, Sendable {
     /// On-device reading can run. No sheet.
     case onDevice
-    /// Screen 07. Cloud fallback is on, so we ask before this letter.
+    /// Screen 07. Never upload is off, so we ask before this letter is read in the cloud.
     case cloudFallback
-    /// State 17. Explain and stop. No cloud button.
+    /// State 17. Never upload is on. Explain and stop. No cloud button.
     case keepPrivate
-}
-
-/// Why state 17 is up. Never upload wins when both switches block the cloud.
-enum KeepPrivateCause: Equatable, Sendable {
-    case neverUpload
-    case cloudFallbackOff
 }
 
 enum UnsupportedDevicePrompt: Equatable, Sendable {
@@ -62,14 +56,12 @@ enum UnsupportedDeviceAction: Equatable, Hashable, Sendable {
 struct UnsupportedDeviceFlow: Equatable, Sendable {
     var onDeviceSupported: Bool
     var neverUpload: Bool
-    /// `ll.allowCloudFallback`. On means ask every time (screen 07).
-    var allowCloudFallback: Bool
 
     var route: UnsupportedDeviceRoute {
         if onDeviceSupported {
             return .onDevice
         }
-        if neverUpload || !allowCloudFallback {
+        if neverUpload {
             return .keepPrivate
         }
         return .cloudFallback
@@ -83,9 +75,9 @@ struct UnsupportedDeviceFlow: Equatable, Sendable {
         }
     }
 
-    var keepPrivateCause: KeepPrivateCause? {
-        guard route == .keepPrivate else { return nil }
-        return neverUpload ? .neverUpload : .cloudFallbackOff
+    /// State 17 has one cause: Never upload is on, and this iPhone cannot read on its own.
+    var isKeepPrivateBecauseNeverUpload: Bool {
+        route == .keepPrivate && neverUpload
     }
 
     var actions: [UnsupportedDeviceAction] {
