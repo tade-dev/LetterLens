@@ -6,6 +6,8 @@
 #   scripts/run-harness.sh LETTERS_DIR OUTPUT_DIR [--txt] [--consent] [--never-upload]
 #
 # LL_SIM_UDID, when set, selects the Simulator. Otherwise the target is `booted`.
+# LL_LETTER_GAP_SECONDS, when set, is forwarded as the pause between letters.
+# The app treats a missing or unusable value as 0.
 # LL_APPCHECK_DEBUG_TOKEN, when set in the environment, is forwarded to the app as
 # FIRAAppCheckDebugToken. The script never reads that token from a file and never prints it.
 
@@ -60,6 +62,13 @@ OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 rm -f "$OUTPUT_DIR/run.json"
 
 SIM_UDID="${LL_SIM_UDID:-booted}"
+
+# The app reads LL_LETTER_GAP_SECONDS. Unset means no pause.
+if [[ -n "${LL_LETTER_GAP_SECONDS:-}" ]]; then
+  export SIMCTL_CHILD_LL_LETTER_GAP_SECONDS="$LL_LETTER_GAP_SECONDS"
+else
+  unset SIMCTL_CHILD_LL_LETTER_GAP_SECONDS || true
+fi
 
 export SIMCTL_CHILD_LL_HARNESS_IN="$LETTERS_DIR"
 export SIMCTL_CHILD_LL_HARNESS_OUT="$OUTPUT_DIR"

@@ -21,7 +21,7 @@ Reply with JSON only, matching exactly:
 
 Rules:
 - type must be exactly one of the values listed above. sender_kind must be exactly one of the values listed above. If you are not sure, use not_sure.
-- If no deadline is written in the letter, deadline and deadline_quote must be null. Do not guess.
+- A deadline is only a date by which the reader must do something: pay, reply, send, book, apply, appeal, or attend. A date when a change takes effect, starts, or ends is not a deadline. If there is no action date, deadline and deadline_quote must be null. Do not guess.
 - Quotes must be copied word for word from the letter.
 - Never say a letter is safe or genuine.
 - Scam signs include: asking for a fee to release money, payment links not on the official domain, extreme urgency, requests for passwords or card details, mismatched sender details.

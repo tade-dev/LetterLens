@@ -64,6 +64,12 @@ enum CardValidator {
             return
         }
 
+        if DeadlineQuote.isEffectiveDateWithoutAction(exact) {
+            card.deadline = nil
+            card.deadlineQuote = nil
+            return
+        }
+
         card.deadlineQuote = exact
         card.deadline = parsed
     }

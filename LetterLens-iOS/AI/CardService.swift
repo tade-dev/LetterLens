@@ -224,7 +224,13 @@ struct CardService {
             )
             return response
         } catch {
-            recordFailure(error, chunk: chunk, model: CardReadSource.onDeviceModelVersion, backoffMS: 0, rawResponses: &rawResponses)
+            recordFailure(
+                error,
+                chunk: chunk,
+                model: AttemptModelLabel.forFailedAttempt(route: route),
+                backoffMS: 0,
+                rawResponses: &rawResponses
+            )
             guard ModelCallClassifier.isOnDeviceGuardrail(error) else {
                 throw error
             }
@@ -242,7 +248,13 @@ struct CardService {
                 )
                 return response
             } catch {
-                recordFailure(error, chunk: chunk, model: CardReadSource.onDeviceModelVersion, backoffMS: 0, rawResponses: &rawResponses)
+                recordFailure(
+                    error,
+                    chunk: chunk,
+                    model: AttemptModelLabel.forFailedAttempt(route: route),
+                    backoffMS: 0,
+                    rawResponses: &rawResponses
+                )
                 throw error
             }
         }
@@ -357,7 +369,7 @@ struct CardService {
         let recordedModel = model
         let recordedBackoff = backoffMS
         LetterLensLog.pipeline.error(
-            "Model call failed domain \(domain, privacy: .public) code \(code, privacy: .public) attempt \(attempt, privacy: .public)"
+            "Model call failed domain \(domain, privacy: .public) code \(code, privacy: .public) model \(recordedModel, privacy: .public) attempt \(attempt, privacy: .public)"
         )
         rawResponses.append(
             ModelRawResponse(

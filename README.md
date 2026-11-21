@@ -85,7 +85,7 @@ scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --consent
 scripts/run-harness.sh /absolute/path/to/letters /absolute/path/to/run --never-upload
 ```
 
-`--txt` reads the `.txt` files and skips OCR. `--consent` sets cloud consent so a repeated on-device guardrail, internal error, or 60-second timeout can fall back to redacted cloud text. `--never-upload` forces on-device. `LL_SIM_UDID`, when set, chooses the Simulator. When it is unset the script uses `booted`. The script deletes `run.json` in the output directory before launch. If `LL_APPCHECK_DEBUG_TOKEN` is set in the environment, the script forwards it to the app as `FIRAAppCheckDebugToken`. It does not read a token from a file and it does not print the token.
+`--txt` reads the `.txt` files and skips OCR. `--consent` sets cloud consent so a repeated on-device guardrail, internal error, or 60-second timeout can fall back to redacted cloud text. `--never-upload` forces on-device. `LL_SIM_UDID`, when set, chooses the Simulator. When it is unset the script uses `booted`. `LL_LETTER_GAP_SECONDS`, when set to a positive number of seconds, is the pause between letters. When it is unset the pause is 0. The script deletes `run.json` in the output directory before launch. If `LL_APPCHECK_DEBUG_TOKEN` is set in the environment, the script forwards it to the app as `FIRAAppCheckDebugToken`. It does not read a token from a file and it does not print the token.
 
 An on-device guardrail or sensitive-content error is retried once on the same route. A cloud HTTP 429 or 503 waits 2s, then 5s, then 12s, plus up to 250ms of jitter, or `Retry-After` capped at 60s. The first of those moves later attempts onto `fallback_model` when that name is set. An empty name skips the switch. A letter gets at most three cloud attempts. 400, 401, and 403 stop immediately. `run.json` records `attempts` and the final `route` for each letter, plus `failed` and `exit_code` for the run. `NN.raw.json` records each attempt, including `model` and `backoff_ms`.
 
@@ -98,7 +98,7 @@ For each letter number `NN` the output folder contains:
 | `NN.raw.json` | Raw model replies (`responses[].text`), plus `error`, `model`, and `backoff_ms` on each attempt |
 | `NN.validated.json` | Validated card |
 | `NN.json` | The same validated card. This is the file `score.py` reads first |
-| `run.json` | `failed`, `exit_code`, and per letter `route`, `model`, `latency_ms`, `attempts`, `error` |
+| `run.json` | `failed`, `exit_code`, `letter_gap_seconds`, and per letter `route`, `model`, `latency_ms`, `attempts`, `error` |
 
 Score against the local answer key, from the test-kit directory (that directory is not in this repo):
 

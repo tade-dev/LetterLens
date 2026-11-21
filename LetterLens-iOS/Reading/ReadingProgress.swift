@@ -2,7 +2,7 @@
 //  ReadingProgress.swift
 //  LetterLens-iOS
 //
-//  Screen 04 state. Swift wires the real pipeline later by calling `apply`.
+//  Screen 04 state. `ScanReadingDriver` calls `apply` as each page and the card finish.
 //  Names line up with the unmerged scan-to-card branch, without importing it:
 //  - `ReadingPath.device` is `ModelRoute.onDeviceOnly` / `CardReadSource.onDevice`
 //  - `ReadingPath.cloud` is a cloud or hybrid route / `CardReadSource.cloud`

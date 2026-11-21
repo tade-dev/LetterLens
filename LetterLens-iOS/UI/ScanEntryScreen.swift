@@ -20,9 +20,8 @@ struct ScanEntryScreen: View {
     )
     var availability: OnDeviceReadingAvailability = .available
     var preferences: PrivacySettingsModel = PrivacySettingsModel(writesDefaults: false)
-    /// `card` is nil when reading finishes before the pipeline stores one.
-    /// The string is the OCR text `ReadingProgress` recorded for this scan.
-    var onCardReady: (LetterCard?, ReadingPath, Int, String) -> Void = { _, _, _, _ in }
+    /// Nil when reading finishes without a card. The read carries the OCR text.
+    var onCardReady: (LetterRead?) -> Void = { _ in }
     var onReadingFailed: () -> Void = {}
     /// Home's import button pushes Scan and opens the photo and PDF choices.
     var opensImport = false
@@ -38,6 +37,9 @@ struct ScanEntryScreen: View {
     @State private var pages: [UIImage] = []
     @State private var readingProgress: ReadingProgress?
     @State private var showReading = false
+    @State private var showReadingFailed = false
+    @State private var handoff = ScanHandoff()
+    @State private var readingStarted = Date()
     @State private var showUnsupported = false
     @State private var presentedPrompt: UnsupportedDevicePrompt?
     @State private var presentedCause: KeepPrivateCause = .cloudFallbackOff
@@ -45,6 +47,7 @@ struct ScanEntryScreen: View {
     @State private var afterSheet: AfterUnsupportedSheet?
     @State private var captureToken = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppConfig.self) private var config
 
     var body: some View {
         ScrollView {
@@ -73,20 +76,10 @@ struct ScanEntryScreen: View {
             }
         }
         .navigationDestination(isPresented: $showReading) {
-            if let readingProgress {
-                ReadingScreen(
-                    pages: pages,
-                    progress: readingProgress,
-                    onCardReady: {
-                        onCardReady(
-                            readingProgress.card,
-                            readingProgress.path,
-                            pages.count,
-                            readingProgress.ocrText
-                        )
-                    },
-                    onReadingFailed: onReadingFailed
-                )
+            if showReadingFailed {
+                ReadingFailedScreen(message: handoff.failureMessage ?? ScanReadingFailure.noText)
+            } else if let readingProgress {
+                readingDestination(progress: readingProgress)
             }
         }
         .navigationDestination(isPresented: $showPrivacy) {
@@ -169,32 +162,77 @@ struct ScanEntryScreen: View {
         .sensoryFeedback(.success, trigger: captureToken)
         .preferredColorScheme(.light)
         .task(id: captureToken) {
-            await recognizeCapturedPages()
+            await runReadingIfNeeded()
         }
     }
 
-    /// On-device OCR for the pages just opened. Nothing here is uploaded.
-    private func recognizeCapturedPages() async {
+    private func runReadingIfNeeded() async {
         guard captureToken > 0, let progress = readingProgress else { return }
+        let generation = handoff.generation
+        let started = readingStarted
         let images = pages
-        var parts: [String] = []
-        for image in images {
-            if Task.isCancelled { return }
-            guard let data = image.pngData() else { continue }
-            do {
-                let text = try await TextRecognizer.recognize(data: data)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if !text.isEmpty {
-                    parts.append(text)
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                continue
+        let path = progress.path
+        let schemaVersion = config.cardSchemaVersion
+        _ = await ScanReadingDriver.read(
+            pages: images,
+            path: path,
+            progress: progress,
+            id: generation,
+            createdAt: started,
+            schemaVersion: schemaVersion,
+            recognize: { image in
+                try await ScanPageOCR.recognize(image)
+            },
+            readCard: { text in
+                try await readCard(text, path: path)
+            },
+            redactedDetailCount: { text in
+                Redactor().redact(text).removedCount
+            },
+            publish: { read in
+                guard handoff.generation == generation else { return }
+                handoff.read = read
+            },
+            fail: { message in
+                guard handoff.generation == generation else { return }
+                handoff.failureMessage = message
             }
-        }
-        guard !Task.isCancelled, readingProgress === progress else { return }
-        progress.recordRecognizedText(parts.joined(separator: "\n\n"))
+        )
+    }
+
+    /// Cloud only after this scan's sheet. Otherwise the existing on-device route.
+    private func readCard(_ text: String, path: ReadingPath) async throws -> CardReadResult {
+        let cloud = path == .cloud && preferences.allowCloudFallback && !preferences.neverUpload
+        let service = CardService(
+            promptTemplate: config.cardPrompt,
+            cardModel: config.cardModel,
+            fallbackModel: config.fallbackModel,
+            router: ModelRouter(neverUpload: !cloud, cloudConsent: cloud)
+        )
+        return try await service.read(ocrText: text)
+    }
+
+    private func readingDestination(progress: ReadingProgress) -> some View {
+        let generation = handoff.generation
+        return ReadingScreen(
+            pages: pages,
+            progress: progress,
+            onCardReady: {
+                guard handoff.generation == generation,
+                      let read = handoff.read,
+                      read.id == generation
+                else { return }
+                onCardReady(read)
+            },
+            onReadingFailed: {
+                if handoff.generation == generation, handoff.failureMessage == nil {
+                    handoff.failureMessage = ScanReadingFailure.noText
+                }
+                guard handoff.generation == generation else { return }
+                showReadingFailed = true
+                onReadingFailed()
+            }
+        )
     }
 
     /// Spring into reading. Reduce Motion uses the same short fade as a page change.
@@ -287,6 +325,11 @@ struct ScanEntryScreen: View {
 
     private func beginReading(_ images: [UIImage], path: ReadingPath) {
         guard !images.isEmpty else { return }
+        handoff.generation = UUID()
+        handoff.read = nil
+        handoff.failureMessage = nil
+        showReadingFailed = false
+        readingStarted = Date()
         pages = images
         pendingImages = []
         readingProgress = ReadingProgress(pagesTotal: images.count, path: path)
@@ -319,12 +362,20 @@ private enum AfterUnsupportedSheet {
     case stay
 }
 
+/// The scan id and the letter ready to store. A class so the reading task and the hand-off share it.
+private final class ScanHandoff {
+    var generation = UUID()
+    var read: LetterRead?
+    var failureMessage: String?
+}
+
 #if DEBUG
 
 #Preview("03 Scan entry") {
     NavigationStack {
         ScanEntryScreen()
     }
+    .environment(AppConfig())
 }
 
 #endif

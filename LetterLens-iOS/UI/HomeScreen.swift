@@ -85,14 +85,10 @@ struct HomeScreen: View {
                 flow: preferences.unsupportedFlow(onDevice: availability),
                 availability: availability,
                 preferences: preferences,
-                onCardReady: { card, path, pageCount, ocrText in
-                    guard let card else { return }
-                    finishedRead = LetterRead(
-                        card: card,
-                        path: path,
-                        pageCount: pageCount,
-                        ocrText: ocrText
-                    )
+                onCardReady: { read in
+                    guard let read else { return }
+                    storeScannedLetter(read)
+                    finishedRead = read
                     showLetter = true
                 },
                 opensImport: scanOpensImport
@@ -107,6 +103,8 @@ struct HomeScreen: View {
                             path: finishedRead.path,
                             pageCount: finishedRead.pageCount,
                             ocrText: finishedRead.ocrText,
+                            letterID: finishedRead.id,
+                            completion: completion,
                             preferences: preferences,
                             availability: availability
                         )
@@ -160,6 +158,7 @@ struct HomeScreen: View {
             .plainListRow(insets: EdgeInsets(top: LLSpace.s, leading: LLSpace.screen, bottom: LLSpace.s, trailing: LLSpace.screen))
     }
 
+    /// TODO: State 12. No empty-state spec in the repo. This system view stays until Prism's copy.
     private var emptyRow: some View {
         ContentUnavailableView {
             Label("No letters yet", systemImage: "envelope")
@@ -468,6 +467,15 @@ struct HomeScreen: View {
 
     private func readingPath(for record: LetterRecord) -> ReadingPath {
         record.source == .cloud ? .cloud : .device
+    }
+
+    /// The scan/reading hand-off. One record per scan id, with the OCR text on `ocrText`.
+    private func storeScannedLetter(_ read: LetterRead) {
+        do {
+            _ = try LetterHistory.write(read, into: modelContext)
+        } catch {
+            // The card still opens. A later hand-off of this same id can try again.
+        }
     }
 
     private func openScan(importOptions: Bool) {

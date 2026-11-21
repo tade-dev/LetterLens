@@ -6,7 +6,7 @@
 //  redaction row follow `ReadingProgress.path`. `onCardReady` fires after
 //  validation. RootView pushes screen 06 when `progress.card` has a scam sign,
 //  and screen 05 for any other stored card. `onReadingFailed` is the route to
-//  state 15, which is not built yet.
+//  state 15, which the caller presents.
 
 import SwiftUI
 import UIKit

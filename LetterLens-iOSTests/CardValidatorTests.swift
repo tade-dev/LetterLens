@@ -76,6 +76,71 @@ import Testing
         #expect(signs.map(\.sign) == ["Payment link", "No reference number"])
     }
 
+    @Test func anEffectiveDateIsNotADeadline() {
+        let quotes = [
+            "These changes take effect from 1 January 2027.",
+            "The new rate takes effect from 1 January 2027.",
+            "The new rate is taking effect from 1 January 2027.",
+            "The new rate is effective from 1 January 2027.",
+            "The new rate is effective on 1 January 2027.",
+        ]
+        for quote in quotes {
+            #expect(DeadlineQuote.isEffectiveDateWithoutAction(quote))
+            let validated = CardValidator.validate(
+                sample(deadline: "2027-01-01", deadlineQuote: quote, amountQuote: nil),
+                ocrText: quote
+            )
+            #expect(validated.deadline == nil)
+            #expect(validated.deadlineQuote == nil)
+        }
+    }
+
+    @Test func aReplyBeforeTheEffectiveDateIsKept() {
+        let quote = "Please reply before the changes take effect on 1 January 2027"
+        let validated = CardValidator.validate(
+            sample(deadline: "2027-01-01", deadlineQuote: quote, amountQuote: nil),
+            ocrText: quote
+        )
+        #expect(validated.deadline == "2027-01-01")
+        #expect(validated.deadlineQuote == quote)
+        #expect(!DeadlineQuote.isEffectiveDateWithoutAction(quote))
+    }
+
+    @Test func aPayByDateIsKept() {
+        let quote = "Pay by 3 March 2027"
+        let validated = CardValidator.validate(
+            sample(deadline: "2027-03-03", deadlineQuote: quote, amountQuote: nil),
+            ocrText: quote
+        )
+        #expect(validated.deadline == "2027-03-03")
+        #expect(validated.deadlineQuote == quote)
+        #expect(DeadlineQuote.containsActionCue(in: quote))
+    }
+
+    @Test func nearbyDoesNotCountAsTheWordBy() {
+        let quote = "These changes take effect from 1 January 2027 at our nearby branch"
+        #expect(!DeadlineQuote.containsActionCue(in: "our nearby branch"))
+        #expect(!DeadlineQuote.containsActionCue(in: "byte"))
+        let validated = CardValidator.validate(
+            sample(deadline: "2027-01-01", deadlineQuote: quote, amountQuote: nil),
+            ocrText: quote
+        )
+        #expect(validated.deadline == nil)
+        #expect(validated.deadlineQuote == nil)
+    }
+
+    @Test func effectiveDateMatchingIsCaseInsensitive() {
+        let quote = "THESE CHANGES TAKE EFFECT FROM 1 JANUARY 2027."
+        #expect(DeadlineQuote.isEffectiveDateWithoutAction(quote))
+        #expect(DeadlineQuote.isEffectiveDateWithoutAction("EFFECTIVE ON 1 January 2027"))
+        let validated = CardValidator.validate(
+            sample(deadline: "2027-01-01", deadlineQuote: quote, amountQuote: nil),
+            ocrText: quote
+        )
+        #expect(validated.deadline == nil)
+        #expect(validated.deadlineQuote == nil)
+    }
+
     @Test func safetyClaimsAreRewritten() {
         var card = sample(deadline: nil, deadlineQuote: nil, amountQuote: nil)
         card.action = "This letter is safe. Pay the balance."
