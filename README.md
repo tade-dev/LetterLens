@@ -72,6 +72,16 @@ OCR stays on device (`RecognizeDocumentsRequest`, falling back to `VNRecognizeTe
 
 The badge is **Read on this iPhone** or **Read in the cloud**, from `response.rawResponse.modelVersion`. On-device is reported as `apple-foundation-models-system-language-model`.
 
+## App icon
+
+`AppIcon.appiconset` holds the light, dark and tinted 1024s. They are generated, not hand-drawn: `scripts/make-app-icon.swift` redraws the `LetterLensLogo` geometry at 1024 so the icon and the in-app mark cannot drift apart.
+
+```bash
+swift scripts/make-app-icon.swift LetterLens-iOS/Assets.xcassets/AppIcon.appiconset
+```
+
+The icon drops the logo's own rounded tile, because iOS masks the corners itself. The files carry no alpha channel: App Store Connect rejects an icon that has one.
+
 ## 15-letter harness
 
 Debug builds only. Launch argument `-LLHarness`. The test-kit letters are not in this repo. Point the environment variables at a local copy of that `letters` folder.
