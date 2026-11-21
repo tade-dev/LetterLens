@@ -15,8 +15,7 @@ struct ScanEntryScreen: View {
     var path: ReadingPath = .device
     var flow: UnsupportedDeviceFlow = UnsupportedDeviceFlow(
         onDeviceSupported: true,
-        neverUpload: false,
-        allowCloudFallback: false
+        neverUpload: false
     )
     var availability: OnDeviceReadingAvailability = .available
     var preferences: PrivacySettingsModel = PrivacySettingsModel(writesDefaults: false)
@@ -34,7 +33,6 @@ struct ScanEntryScreen: View {
     @State private var showReading = false
     @State private var showUnsupported = false
     @State private var presentedPrompt: UnsupportedDevicePrompt?
-    @State private var presentedCause: KeepPrivateCause = .cloudFallbackOff
     @State private var showPrivacy = false
     @State private var afterSheet: AfterUnsupportedSheet?
     @State private var captureToken = 0
@@ -88,7 +86,6 @@ struct ScanEntryScreen: View {
             if let presentedPrompt {
                 UnsupportedDeviceSheet(
                     prompt: presentedPrompt,
-                    keepPrivateCause: presentedCause,
                     onReadInCloud: {
                         afterSheet = .readInCloud
                         showUnsupported = false
@@ -227,7 +224,6 @@ struct ScanEntryScreen: View {
         }
         afterSheet = nil
         presentedPrompt = prompt
-        presentedCause = flow.keepPrivateCause ?? .cloudFallbackOff
         showUnsupported = true
     }
 

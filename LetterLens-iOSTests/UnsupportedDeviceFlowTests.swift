@@ -10,63 +10,37 @@ import Testing
 @MainActor
 @Suite("Privacy and cloud fallback")
 struct UnsupportedDeviceFlowTests {
-    @Test func aSupportedPhoneShowsNoSheetEvenWhenCloudIsBlocked() {
-        let flow = UnsupportedDeviceFlow(
-            onDeviceSupported: true,
-            neverUpload: true,
-            allowCloudFallback: false
-        )
+    @Test func aSupportedPhoneShowsNoSheetEvenWhenNeverUploadIsOn() {
+        let flow = UnsupportedDeviceFlow(onDeviceSupported: true, neverUpload: true)
         #expect(flow.route == .onDevice)
         #expect(flow.prompt == nil)
         #expect(flow.actions == [])
         #expect(flow.showsCloudButton == false)
-        #expect(flow.keepPrivateCause == nil)
+        #expect(flow.isKeepPrivateBecauseNeverUpload == false)
     }
 
-    @Test func cloudFallbackOnAsksBeforeEveryLetter() {
-        let flow = UnsupportedDeviceFlow(
-            onDeviceSupported: false,
-            neverUpload: false,
-            allowCloudFallback: true
-        )
+    @Test func neverUploadOffAlwaysAsksBeforeACloudRead() {
+        let flow = UnsupportedDeviceFlow(onDeviceSupported: false, neverUpload: false)
         #expect(flow.route == .cloudFallback)
         #expect(flow.prompt == .cloudFallback)
         #expect(flow.actions == [.readInCloud, .notNow])
         #expect(flow.showsCloudButton == true)
-        #expect(flow.keepPrivateCause == nil)
+        #expect(flow.isKeepPrivateBecauseNeverUpload == false)
         #expect(flow.prompt?.heroSymbolName == "cloud")
         #expect(flow.prompt?.heroIsNeutral == false)
+        #expect(flow.actions.contains(.keepPrivateAndClose) == false)
     }
 
-    @Test func cloudFallbackOffStopsWithNoCloudButton() {
-        let flow = UnsupportedDeviceFlow(
-            onDeviceSupported: false,
-            neverUpload: false,
-            allowCloudFallback: false
-        )
+    @Test func neverUploadOnAnUnsupportedPhoneIsTheOnlyKeepPrivateCause() {
+        let flow = UnsupportedDeviceFlow(onDeviceSupported: false, neverUpload: true)
         #expect(flow.route == .keepPrivate)
         #expect(flow.prompt == .keepPrivate)
-        #expect(flow.keepPrivateCause == .cloudFallbackOff)
+        #expect(flow.isKeepPrivateBecauseNeverUpload == true)
         #expect(flow.actions == [.keepPrivateAndClose, .openPrivacySettings])
+        #expect(flow.actions.contains(.readInCloud) == false)
         #expect(flow.showsCloudButton == false)
         #expect(flow.prompt?.heroSymbolName == "lock.fill")
         #expect(flow.prompt?.heroIsNeutral == true)
-    }
-
-    @Test func neverUploadOnAnUnsupportedPhoneStopsWithNoCloudButton() {
-        for allowCloud in [true, false] {
-            let flow = UnsupportedDeviceFlow(
-                onDeviceSupported: false,
-                neverUpload: true,
-                allowCloudFallback: allowCloud
-            )
-            #expect(flow.route == .keepPrivate)
-            #expect(flow.prompt == .keepPrivate)
-            #expect(flow.keepPrivateCause == .neverUpload)
-            #expect(flow.actions == [.keepPrivateAndClose, .openPrivacySettings])
-            #expect(flow.actions.contains(.readInCloud) == false)
-            #expect(flow.showsCloudButton == false)
-        }
     }
 
     @Test func promptActionsMatchTheRoute() {
@@ -76,21 +50,22 @@ struct UnsupportedDeviceFlowTests {
         #expect(UnsupportedDevicePrompt.cloudFallback.actions.contains { $0.isCloudRead })
     }
 
-    @Test func modelMapsAvailabilityAndTheStoredSwitchesIntoTheFlow() {
-        let stopped = PrivacySettingsModel(neverUpload: true, allowCloudFallback: true, writesDefaults: false)
+    @Test func modelMapsAvailabilityAndNeverUploadIntoTheFlow() {
+        let stopped = PrivacySettingsModel(neverUpload: true, writesDefaults: false)
         #expect(stopped.unsupportedFlow(onDevice: .unavailable).route == .keepPrivate)
-        #expect(stopped.unsupportedFlow(onDevice: .unavailable).keepPrivateCause == .neverUpload)
+        #expect(stopped.unsupportedFlow(onDevice: .unavailable).isKeepPrivateBecauseNeverUpload == true)
         #expect(stopped.unsupportedFlow(onDevice: .available).route == .onDevice)
 
-        let asking = PrivacySettingsModel(neverUpload: false, allowCloudFallback: true, writesDefaults: false)
-        #expect(asking.unsupportedFlow(onDevice: .unavailable).route == .cloudFallback)
-        #expect(asking.unsupportedFlow(onDevice: .unavailable).showsCloudButton == true)
+        let asking = PrivacySettingsModel(neverUpload: false, writesDefaults: false)
+        let askingFlow = asking.unsupportedFlow(onDevice: .unavailable)
+        #expect(askingFlow.route == .cloudFallback)
+        #expect(askingFlow.showsCloudButton == true)
+        #expect(askingFlow.isKeepPrivateBecauseNeverUpload == false)
+    }
 
-        let blocked = PrivacySettingsModel(neverUpload: false, allowCloudFallback: false, writesDefaults: false)
-        let blockedFlow = blocked.unsupportedFlow(onDevice: .unavailable)
-        #expect(blockedFlow.route == .keepPrivate)
-        #expect(blockedFlow.keepPrivateCause == .cloudFallbackOff)
-        #expect(blockedFlow.showsCloudButton == false)
+    @Test func neverUploadFootnoteChangesWithTheSwitch() {
+        #expect(NeverUploadCopy.footnote(isOn: true) == "Everything stays on this phone. “Plan next steps” is turned off.")
+        #expect(NeverUploadCopy.footnote(isOn: false) == "Letters are read on this phone. If that isn't possible, or you ask for a plan, we'll show you what gets sent and ask first.")
     }
 
     @Test func readyStatusUsesDeviceGreenAndUnavailableStaysNeutral() {
@@ -100,55 +75,43 @@ struct UnsupportedDeviceFlowTests {
         #expect(OnDeviceReadingAvailability.unavailable.statusStyle.tint == .neutral)
     }
 
-    @Test func preferenceKeysMatchTheScanToCardPipeline() {
+    @Test func preferenceKeyIsNeverUploadOnly() {
         #expect(PrivacyPreference.neverUpload == "ll.neverUpload")
-        #expect(PrivacyPreference.allowCloudFallback == "ll.allowCloudFallback")
     }
 
-    @Test func bothSwitchesDefaultToOff() throws {
+    @Test func neverUploadDefaultsToOff() throws {
         let (defaults, name) = try freshDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
 
         #expect(PrivacyPreference.readNeverUpload(from: defaults) == false)
-        #expect(PrivacyPreference.readAllowCloudFallback(from: defaults) == false)
-
         let model = PrivacySettingsModel(defaults: defaults)
         #expect(model.neverUpload == false)
-        #expect(model.allowCloudFallback == false)
+        #expect(model.unsupportedFlow(onDevice: .unavailable).route == .cloudFallback)
     }
 
-    @Test func settingsWritesNeverUploadAndAllowCloudFallback() throws {
+    @Test func settingsWritesNeverUploadAndIgnoresAStoredCloudFallbackKey() throws {
         let (defaults, name) = try freshDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(true, forKey: "ll.allowCloudFallback")
 
         let model = PrivacySettingsModel(defaults: defaults)
+        #expect(model.unsupportedFlow(onDevice: .unavailable).route == .cloudFallback)
         model.setNeverUpload(true)
-        model.setAllowCloudFallback(true)
-
         #expect(defaults.bool(forKey: PrivacyPreference.neverUpload) == true)
-        #expect(defaults.bool(forKey: PrivacyPreference.allowCloudFallback) == true)
-        #expect(PrivacyPreference.readAllowCloudFallback(from: defaults) == true)
+        #expect(model.unsupportedFlow(onDevice: .unavailable).isKeepPrivateBecauseNeverUpload == true)
+        #expect(defaults.bool(forKey: "ll.allowCloudFallback") == true)
     }
 
     @Test func aPreviewModelDoesNotWriteTheStore() throws {
         let (defaults, name) = try freshDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(true, forKey: PrivacyPreference.neverUpload)
-        defaults.set(true, forKey: PrivacyPreference.allowCloudFallback)
 
-        let model = PrivacySettingsModel(
-            neverUpload: true,
-            allowCloudFallback: true,
-            defaults: defaults,
-            writesDefaults: false
-        )
+        let model = PrivacySettingsModel(neverUpload: true, defaults: defaults, writesDefaults: false)
         model.setNeverUpload(false)
-        model.setAllowCloudFallback(false)
 
         #expect(model.neverUpload == false)
-        #expect(model.allowCloudFallback == false)
         #expect(defaults.bool(forKey: PrivacyPreference.neverUpload) == true)
-        #expect(defaults.bool(forKey: PrivacyPreference.allowCloudFallback) == true)
     }
 
     @Test func dismissWithNoChoiceDeclines() {

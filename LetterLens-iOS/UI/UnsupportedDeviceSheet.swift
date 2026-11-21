@@ -13,7 +13,6 @@ import SwiftUI
 
 struct UnsupportedDeviceSheet: View {
     var prompt: UnsupportedDevicePrompt
-    var keepPrivateCause: KeepPrivateCause = .neverUpload
     var onReadInCloud: () -> Void = {}
     var onNotNow: () -> Void = {}
     var onKeepPrivate: () -> Void = {}
@@ -36,14 +35,12 @@ struct UnsupportedDeviceSheet: View {
 
     init(
         prompt: UnsupportedDevicePrompt,
-        keepPrivateCause: KeepPrivateCause = .neverUpload,
         onReadInCloud: @escaping () -> Void = {},
         onNotNow: @escaping () -> Void = {},
         onKeepPrivate: @escaping () -> Void = {},
         onOpenPrivacySettings: @escaping () -> Void = {}
     ) {
         self.prompt = prompt
-        self.keepPrivateCause = keepPrivateCause
         self.onReadInCloud = onReadInCloud
         self.onNotNow = onNotNow
         self.onKeepPrivate = onKeepPrivate
@@ -60,6 +57,10 @@ struct UnsupportedDeviceSheet: View {
                     .clearInkEntrance(index: 1, appeared: appeared)
                 if prompt == .cloudFallback {
                     protections
+                }
+                if prompt == .keepPrivate {
+                    keepPrivatePanel
+                        .clearInkEntrance(index: 2, appeared: appeared)
                 }
                 actions
                     .clearInkEntrance(index: 5, appeared: appeared)
@@ -137,13 +138,23 @@ struct UnsupportedDeviceSheet: View {
         case .cloudFallback:
             "On-device reading needs Apple Intelligence. We can read it in the cloud with Google's Gemini instead."
         case .keepPrivate:
-            switch keepPrivateCause {
-            case .neverUpload:
-                "On-device reading needs Apple Intelligence. Never upload is on, so nothing will be sent."
-            case .cloudFallbackOff:
-                "On-device reading needs Apple Intelligence. Cloud fallback is off, so nothing will be sent."
-            }
+            "Reading on the phone needs Apple Intelligence, and this iPhone doesn't have it. You've turned on Never upload, so we won't send your letter anywhere."
         }
+    }
+
+    private var keepPrivatePanel: some View {
+        VStack(alignment: .leading, spacing: LLSpace.sm) {
+            Text("Nothing was read and nothing was sent.")
+                .fixedSize(horizontal: false, vertical: true)
+            Text("To use the cloud, turn off Never upload in Privacy. We'll still ask before anything is sent.")
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .clearInkBody14()
+        .foregroundStyle(LLColor.ink)
+        .padding(.horizontal, LLSpace.card)
+        .padding(.vertical, LLSpace.block)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LLColor.ground, in: RoundedRectangle(cornerRadius: LLRadius.button, style: .continuous))
     }
 
     private var protections: some View {
@@ -272,20 +283,15 @@ private struct ClearInkCheckBounce: ViewModifier {
 }
 
 #Preview("17 Keep it private") {
-    UnsupportedDevicePreview(prompt: .keepPrivate, keepPrivateCause: .neverUpload)
-}
-
-#Preview("17 Cloud fallback off") {
-    UnsupportedDevicePreview(prompt: .keepPrivate, keepPrivateCause: .cloudFallbackOff)
+    UnsupportedDevicePreview(prompt: .keepPrivate)
 }
 
 #Preview("17 Keep it private, accessibility XXL") {
-    UnsupportedDevicePreview(prompt: .keepPrivate, keepPrivateCause: .neverUpload, dynamicType: .accessibility5)
+    UnsupportedDevicePreview(prompt: .keepPrivate, dynamicType: .accessibility5)
 }
 
 private struct UnsupportedDevicePreview: View {
     var prompt: UnsupportedDevicePrompt
-    var keepPrivateCause: KeepPrivateCause = .neverUpload
     var dynamicType: DynamicTypeSize? = nil
     @State private var showSheet = true
 
@@ -293,7 +299,7 @@ private struct UnsupportedDevicePreview: View {
         LLColor.ground
             .ignoresSafeArea()
             .sheet(isPresented: $showSheet) {
-                UnsupportedDeviceSheet(prompt: prompt, keepPrivateCause: keepPrivateCause)
+                UnsupportedDeviceSheet(prompt: prompt)
                     .dynamicTypeSize(dynamicType ?? .large)
             }
             .preferredColorScheme(.light)

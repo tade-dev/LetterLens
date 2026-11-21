@@ -3,9 +3,9 @@
 //  LetterLens-iOS
 //
 //  Settings the Privacy screen and the cloud-fallback sheet share.
-//  `ll.neverUpload` and `ll.allowCloudFallback` are the keys `DebugPipelineModel`
-//  writes on the scan-to-card branch. There is no separate ask-before key.
-//  Cloud fallback on means we ask before every letter. Off means state 17.
+//  `ll.neverUpload` is the only privacy switch. Cloud is offered only when it is off,
+//  and every cloud read still goes through the consent sheet. A stored
+//  `ll.allowCloudFallback` value is ignored.
 //
 //  On-device status is an input. The pipeline reads
 //  `FirebaseAI.SystemLanguageModel.default.availability` and only switches on
@@ -16,7 +16,6 @@ import Observation
 
 enum PrivacyPreference {
     static let neverUpload = "ll.neverUpload"
-    static let allowCloudFallback = "ll.allowCloudFallback"
 
     static let openSourceURL = URL(string: "https://github.com/tade-dev/LetterLens/blob/main/LICENSE")!
 
@@ -27,13 +26,14 @@ enum PrivacyPreference {
     static func writeNeverUpload(_ value: Bool, to defaults: UserDefaults = .standard) {
         defaults.set(value, forKey: neverUpload)
     }
+}
 
-    static func readAllowCloudFallback(from defaults: UserDefaults = .standard) -> Bool {
-        defaults.bool(forKey: allowCloudFallback)
-    }
-
-    static func writeAllowCloudFallback(_ value: Bool, to defaults: UserDefaults = .standard) {
-        defaults.set(value, forKey: allowCloudFallback)
+enum NeverUploadCopy {
+    static func footnote(isOn: Bool) -> String {
+        if isOn {
+            return String(localized: "Everything stays on this phone. “Plan next steps” is turned off.")
+        }
+        return String(localized: "Letters are read on this phone. If that isn't possible, or you ask for a plan, we'll show you what gets sent and ask first.")
     }
 }
 
@@ -87,12 +87,10 @@ final class PrivacySettingsModel {
     private let writesDefaults: Bool
 
     var neverUpload: Bool
-    var allowCloudFallback: Bool
 
     /// `writesDefaults` is false in previews so toggling does not touch the simulator store.
     init(
         neverUpload: Bool = false,
-        allowCloudFallback: Bool = false,
         defaults: UserDefaults = .standard,
         writesDefaults: Bool = true
     ) {
@@ -100,10 +98,8 @@ final class PrivacySettingsModel {
         self.writesDefaults = writesDefaults
         if writesDefaults {
             self.neverUpload = PrivacyPreference.readNeverUpload(from: defaults)
-            self.allowCloudFallback = PrivacyPreference.readAllowCloudFallback(from: defaults)
         } else {
             self.neverUpload = neverUpload
-            self.allowCloudFallback = allowCloudFallback
         }
     }
 
@@ -112,22 +108,15 @@ final class PrivacySettingsModel {
         commit()
     }
 
-    func setAllowCloudFallback(_ value: Bool) {
-        allowCloudFallback = value
-        commit()
-    }
-
     func commit() {
         guard writesDefaults else { return }
         PrivacyPreference.writeNeverUpload(neverUpload, to: defaults)
-        PrivacyPreference.writeAllowCloudFallback(allowCloudFallback, to: defaults)
     }
 
     func unsupportedFlow(onDevice availability: OnDeviceReadingAvailability) -> UnsupportedDeviceFlow {
         UnsupportedDeviceFlow(
             onDeviceSupported: availability == .available,
-            neverUpload: neverUpload,
-            allowCloudFallback: allowCloudFallback
+            neverUpload: neverUpload
         )
     }
 }
