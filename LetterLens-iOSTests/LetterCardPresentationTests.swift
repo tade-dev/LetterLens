@@ -66,6 +66,48 @@ struct LetterCardPresentationTests {
         #expect(LetterRead(card: card, path: .cloud, pageCount: -1, ocrText: "").fromLine == "From Council tax")
     }
 
+    @Test func onlyPaymentTypesShowTheAmountRow() {
+        for type in LetterType.allCases {
+            let shows = AmountVisibility.showsRow(for: type)
+            switch type {
+            case .bill, .reminder, .finalNotice, .penalty:
+                #expect(shows)
+            case .changeNotice, .informationRequest, .consentRequest, .refund, .information, .appointment, .other, .notSure:
+                #expect(!shows)
+            }
+        }
+    }
+
+    @Test func oneFigureIsCopiedFromTheQuote() throws {
+        try expectFigure("Please pay £184.50 by 3 December 2026", equals: "£184.50")
+        try expectFigure("£1,042.50", equals: "£1,042.50")
+        try expectFigure("£0.99", equals: "£0.99")
+        try expectFigure("GBP 40", equals: "GBP 40")
+    }
+
+    @Test func noFigureOrTwoFiguresReturnNil() {
+        #expect(AmountFigure.extract(from: "Please pay the balance by Friday") == nil)
+        #expect(AmountFigure.extract(from: "£40 plus £12 fee") == nil)
+        #expect(AmountFigure.extract(from: "£40 plus a £12 late fee") == nil)
+    }
+
+    @Test func nilQuoteIsMissingAndTwoFiguresAreQuoteOnly() {
+        #expect(AmountPresentation(quote: nil) == .missing)
+        let found = "Please pay £184.50 by 3 December 2026"
+        #expect(AmountPresentation(quote: found) == .found(figure: "£184.50", quote: found))
+        let two = "£40 plus a £12 late fee"
+        #expect(AmountPresentation(quote: two) == .quoteOnly(quote: two))
+        #expect(AmountPresentation(quote: two).isQuoteOnly)
+        #expect(AmountPresentation(quote: two).figure == nil)
+    }
+
+    private func expectFigure(_ quote: String, equals expected: String) throws {
+        let slice = try #require(AmountFigure.extract(from: quote))
+        #expect(slice.base == quote)
+        #expect(String(slice) == expected)
+        #expect(quote[slice.startIndex..<slice.endIndex] == slice)
+    }
+
     private func london(_ year: Int, _ month: Int, _ day: Int, hour: Int) throws -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "Europe/London"))

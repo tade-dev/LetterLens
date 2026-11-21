@@ -20,23 +20,26 @@ struct ScamWarningScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: LLSpace.l) {
-                hero
+                LetterProvenancePill(path: path)
                     .letterCardEntrance(index: 0, appeared: appeared)
-                claim
+                hero
                     .letterCardEntrance(index: 1, appeared: appeared)
+                claim
+                    .letterCardEntrance(index: 2, appeared: appeared)
                 if !signs.isEmpty {
                     signsCard
-                        .letterCardEntrance(index: 2, appeared: appeared)
+                        .letterCardEntrance(index: 3, appeared: appeared)
                 }
                 bottom
-                    .letterCardEntrance(index: 3, appeared: appeared)
+                    .letterCardEntrance(index: 4, appeared: appeared)
             }
             .padding(LLSpace.screen)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
         .background(LLColor.ground.ignoresSafeArea())
-        .letterProvenanceToolbar(path: path)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.warning, trigger: warningShown)
         .preferredColorScheme(.light)
         .onAppear {
@@ -74,7 +77,7 @@ struct ScamWarningScreen: View {
                 .font(LLFont.title)
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("We can't be sure. Check with the sender using contact details you find yourself.")
+            Text("We can’t be sure. Check with the sender using contact details you find yourself.")
                 .clearInkBody14()
                 .foregroundStyle(LLColor.warningOn)
                 .fixedSize(horizontal: false, vertical: true)
