@@ -442,28 +442,7 @@ struct CardService {
     }
 
     private func reinserted(_ card: LetterCard, map: RedactionMap?) -> LetterCard {
-        guard let map, map.removedCount > 0 else { return card }
-        var card = card
-        card.action = map.reinsert(into: card.action)
-        if let deadline = card.deadline {
-            card.deadline = map.reinsert(into: deadline)
-        }
-        if let deadlineQuote = card.deadlineQuote {
-            card.deadlineQuote = map.reinsert(into: deadlineQuote)
-        }
-        if let amountQuote = card.amountQuote {
-            card.amountQuote = map.reinsert(into: amountQuote)
-        }
-        card.watchOuts = card.watchOuts.map { map.reinsert(into: $0) }
-        card.scamSigns = card.scamSigns.map { sign in
-            var sign = sign
-            sign.sign = map.reinsert(into: sign.sign)
-            if let quote = sign.quote {
-                sign.quote = map.reinsert(into: quote)
-            }
-            return sign
-        }
-        return card
+        CardFieldRestore.apply(card, map: map)
     }
 
     private static func source(versions: [String], route: ModelRoute) -> CardReadSource {

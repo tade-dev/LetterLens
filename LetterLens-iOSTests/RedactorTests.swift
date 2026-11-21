@@ -67,6 +67,55 @@ import Testing
         #expect(result.text.hasSuffix(" [FUZZY]"))
         #expect(result.text.contains("[NAME_1]"))
     }
+
+    @Test func hyphenatedAndSlashedReferencesAreTokenised() {
+        let samples = ["WT-8841-QX", "AB/12345/C", "1234-ABCD", "ISO-9001"]
+        for sample in samples {
+            let result = redactor.redact("Code \(sample) today.")
+            #expect(!result.text.contains(sample))
+            #expect(result.text.contains("[REF_1]"))
+            #expect(result.map.original(for: "[REF_1]") == sample)
+        }
+        let labelled = redactor.redact("See REF 1234-ABCD today.")
+        #expect(labelled.map.original(for: "[REF_1]") == "1234-ABCD")
+        #expect(!labelled.text.contains("1234-ABCD"))
+    }
+
+    @Test func datesAmountsPostcodesAndPlainWordsAreNotReferences() {
+        let kept = [
+            "Thank-you",
+            "£42.50",
+            "9 January 2027",
+            "COVID-19",
+            "Q3-2026",
+            "mid-2026",
+            "pre-2020",
+            "FY2026-27",
+            "P45/P60",
+            "B-12",
+        ]
+        for phrase in kept {
+            let result = redactor.redact("Note \(phrase) today.")
+            #expect(result.text.contains(phrase))
+            #expect(!result.text.contains("[REF_"))
+        }
+        let postcode = redactor.redact("Write to SW1A 1AA today.")
+        #expect(postcode.map.original(for: "[POSTCODE_1]") == "SW1A 1AA")
+        #expect(!postcode.text.contains("[REF_"))
+    }
+
+    @Test func aSeparatorBetweenRedactedSpansIsKeptAndRoundTrips() {
+        let newline = "ada@example.com\nSW1A 1AA"
+        let spaced = "WT-8841-QX SW1A 1AA"
+        let broken = redactor.redact(newline)
+        let beside = redactor.redact(spaced)
+        #expect(broken.text.contains("[EMAIL_1]\n[POSTCODE_1]"))
+        #expect(beside.text.contains("[REF_1] [POSTCODE_1]"))
+        #expect(!broken.text.contains("]["))
+        #expect(!beside.text.contains("]["))
+        #expect(broken.map.reinsert(into: broken.text) == newline)
+        #expect(beside.map.reinsert(into: beside.text) == spaced)
+    }
 }
 
 private struct AppendingPass: RedactionFuzzyPass {

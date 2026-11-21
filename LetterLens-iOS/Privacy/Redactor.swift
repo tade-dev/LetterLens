@@ -175,6 +175,12 @@ struct Redactor {
             priority: 50
         )
         add(
+            #"\b[A-Z0-9]+(?:[-/][A-Z0-9]+){1,}\b"#,
+            kind: .ref,
+            priority: 52,
+            accept: isSeparatedReference
+        )
+        add(
             #"(?i)\b(?:dear|hello|hi)\s+([^,\n]{1,80}?)(?=\s*[,.\n])"#,
             kind: .name,
             priority: 45,
@@ -213,6 +219,27 @@ struct Redactor {
         return .ref
     }
 
+    /// An uppercase hyphen or slash code with a letter and a run of at least three digits.
+    /// `WT-8841-QX` and `AB/12345/C` qualify. Lowercase words, short numbers, quarters,
+    /// and financial years do not.
+    private static func isSeparatedReference(_ snippet: String) -> Bool {
+        let segments = snippet.split { $0 == "-" || $0 == "/" }
+        let hasLongDigitRun = segments.contains { segment in
+            segment.filter(\.isNumber).count >= 3
+        }
+        let hasLetter = snippet.contains { $0.isLetter }
+        guard hasLongDigitRun, hasLetter else { return false }
+        if snippet.range(of: #"^Q[1-4]-\d{4}$"#, options: .regularExpression) != nil {
+            return false
+        }
+        if snippet.range(of: #"^FY\d{2,4}(-\d{2,4})?$"#, options: .regularExpression) != nil {
+            return false
+        }
+        let compact = snippet.filter { $0.isLetter || $0.isNumber }
+        let postcode = #"^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$"#
+        return compact.range(of: postcode, options: .regularExpression) == nil
+    }
+
     /// Higher priority wins. A lower-priority span that contains a winner is split around it.
     private static func resolve(_ spans: [Span], in text: String) -> [Span] {
         let tidied = spans.map { span -> Span in
@@ -238,10 +265,12 @@ struct Redactor {
                 pieces = pieces.flatMap { subtract(existing.range, from: $0) }
             }
             for piece in pieces {
-                let snippet = text[piece].trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = trimmingEdges(piece, in: text)
+                guard trimmed.lowerBound < trimmed.upperBound else { continue }
+                let snippet = String(text[trimmed])
                 let minimum = candidate.kind == .name ? 2 : 3
                 guard snippet.count >= minimum else { continue }
-                accepted.append(Span(range: piece, kind: candidate.kind, priority: candidate.priority))
+                accepted.append(Span(range: trimmed, kind: candidate.kind, priority: candidate.priority))
             }
         }
         return accepted.sorted { $0.range.lowerBound < $1.range.lowerBound }
@@ -261,6 +290,28 @@ struct Redactor {
             }
         }
         return range.lowerBound..<end
+    }
+
+    /// Whitespace at either edge stays in the text between tokens, so two spans
+    /// separated by a space or a newline do not become `[ADDRESS_1][POSTCODE_1]`.
+    private static func trimmingEdges(
+        _ range: Range<String.Index>,
+        in text: String
+    ) -> Range<String.Index> {
+        var start = range.lowerBound
+        var end = range.upperBound
+        while start < end, text[start].isWhitespace {
+            start = text.index(after: start)
+        }
+        while end > start {
+            let previous = text.index(before: end)
+            if text[previous].isWhitespace {
+                end = previous
+            } else {
+                break
+            }
+        }
+        return start..<end
     }
 
     private static func subtract(
