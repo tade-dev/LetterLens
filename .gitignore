@@ -9,3 +9,9 @@ xcuserdata/
 DerivedData/
 *.xcuserstate
 .DS_Store
+
+# Local Firebase web config and App Check debug tokens: never commit (public repo)
+config.local.js
+**/config.local.js
+.env.local
+**/.env.local
