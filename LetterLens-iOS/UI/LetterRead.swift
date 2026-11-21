@@ -27,35 +27,26 @@ extension LetterCard {
     }
 }
 
-/// System back button, plus the existing on-device or cloud pill.
-/// The pill opts out of the toolbar's shared glass so it stays one capsule.
-struct LetterProvenanceToolbar: ViewModifier {
-    var path: ReadingPath
-
-    private var provenance: Provenance {
-        switch path {
+extension ReadingPath {
+    /// Screens 05 and 06 are handed this path, not `CardReadResult.source`.
+    /// Device stays the on-iPhone pill. Cloud stays the cloud pill.
+    var letterProvenance: Provenance {
+        switch self {
         case .device:
             .device
         case .cloud:
             .cloudRead
         }
     }
-
-    func body(content: Content) -> some View {
-        content
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    LLProvenanceBadge(kind: provenance)
-                }
-                .sharedBackgroundVisibility(.hidden)
-            }
-    }
 }
 
-extension View {
-    func letterProvenanceToolbar(path: ReadingPath) -> some View {
-        modifier(LetterProvenanceToolbar(path: path))
+/// The labelled provenance pill. The system back button stays in the navigation bar.
+struct LetterProvenancePill: View {
+    var path: ReadingPath
+
+    var body: some View {
+        LLProvenanceBadge(kind: path.letterProvenance)
+            .accessibilityElement(children: .combine)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

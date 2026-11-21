@@ -25,29 +25,39 @@ struct LetterCardScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: LLSpace.l) {
-                header
+                LetterProvenancePill(path: path)
                     .letterCardEntrance(index: 0, appeared: appeared)
+                header
+                    .letterCardEntrance(index: 1, appeared: appeared)
                 if !actionText.isEmpty {
                     actionCard
-                        .letterCardEntrance(index: 1, appeared: appeared)
+                        .letterCardEntrance(index: 2, appeared: appeared)
+                }
+                if AmountVisibility.showsRow(for: card.type) {
+                    amountBlock
+                        .letterCardEntrance(index: 3, appeared: appeared)
                 }
                 if let deadline {
                     deadlineCard(deadline)
-                        .letterCardEntrance(index: 2, appeared: appeared)
+                        .letterCardEntrance(index: 4, appeared: appeared)
                 }
                 if !watchOuts.isEmpty {
                     watchCard
-                        .letterCardEntrance(index: 3, appeared: appeared)
+                        .letterCardEntrance(index: 5, appeared: appeared)
                 }
-                bottom
-                    .letterCardEntrance(index: 4, appeared: appeared)
+                footer
+                    .letterCardEntrance(index: 6, appeared: appeared)
             }
             .padding(LLSpace.screen)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
         .background(LLColor.ground.ignoresSafeArea())
-        .letterProvenanceToolbar(path: path)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            pinnedActions
+        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showNextSteps) {
             NextStepsPlaceholderScreen()
         }
@@ -89,6 +99,16 @@ struct LetterCardScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityHeading(.h1)
+    }
+
+    private var amountBlock: some View {
+        let presentation = AmountPresentation(quote: card.amountQuote)
+        return LLAmountBlock(
+            amount: presentation.figure,
+            quote: presentation.quotedText,
+            showsFallback: true,
+            quoteOnly: presentation.isQuoteOnly
+        )
     }
 
     private var actionCard: some View {
@@ -187,29 +207,35 @@ struct LetterCardScreen: View {
         }
     }
 
-    @ViewBuilder
-    private var bottom: some View {
+    private var footer: some View {
+        Text(LetterCopy.disclaimerShort)
+            .font(LLFont.caption)
+            .foregroundStyle(LLColor.inkSecondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var pinnedActions: some View {
         VStack(spacing: LLSpace.m) {
-            if dynamicTypeSize.isAccessibilitySize {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: LLSpace.m) {
+                    addReminderButton
+                    markDoneButton
+                }
                 VStack(spacing: LLSpace.m) {
                     addReminderButton
                     markDoneButton
                 }
-            } else {
-                HStack(alignment: .top, spacing: LLSpace.m) {
-                    addReminderButton
-                        .frame(maxWidth: .infinity)
-                    markDoneButton
-                        .frame(maxWidth: .infinity)
-                }
             }
             planButton
-            Text("Explains the letter. Not legal or financial advice.")
-                .font(LLFont.caption)
-                .foregroundStyle(LLColor.inkSecondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, LLSpace.screen)
+        .padding(.top, LLSpace.m)
+        .padding(.bottom, LLSpace.s)
+        .frame(maxWidth: .infinity)
+        .background {
+            LLColor.ground.ignoresSafeArea(edges: .bottom)
         }
     }
 
@@ -254,17 +280,47 @@ struct LetterCardScreen: View {
 
 #if DEBUG
 
-#Preview("05 Letter card, on this iPhone") {
+#Preview("05 Amount found, on this iPhone") {
     NavigationStack {
         LetterCardScreen(
-            card: LetterCardScreenPreview.councilReminder,
+            card: LetterCardScreenPreview.councilBill,
             path: .device,
             pageCount: 2
         )
     }
 }
 
-#Preview("05 Letter card, cloud, no deadline") {
+#Preview("05 Amount found, in the cloud") {
+    NavigationStack {
+        LetterCardScreen(
+            card: LetterCardScreenPreview.councilBill,
+            path: .cloud,
+            pageCount: 2
+        )
+    }
+}
+
+#Preview("05 Amount missing") {
+    NavigationStack {
+        LetterCardScreen(
+            card: LetterCardScreenPreview.billWithoutAmount,
+            path: .device,
+            pageCount: 1
+        )
+    }
+}
+
+#Preview("05 Amount quote only") {
+    NavigationStack {
+        LetterCardScreen(
+            card: LetterCardScreenPreview.billWithTwoFigures,
+            path: .device,
+            pageCount: 1
+        )
+    }
+}
+
+#Preview("05 Informational letter, no amount row") {
     NavigationStack {
         LetterCardScreen(
             card: LetterCardScreenPreview.nhsInformation,
@@ -274,18 +330,53 @@ struct LetterCardScreen: View {
     }
 }
 
+#Preview("05 Amount found, largest accessibility type") {
+    NavigationStack {
+        LetterCardScreen(
+            card: LetterCardScreenPreview.councilBill,
+            path: .device,
+            pageCount: 2
+        )
+    }
+    .dynamicTypeSize(.accessibility5)
+}
+
 private enum LetterCardScreenPreview {
-    static let councilReminder = LetterCard(
-        type: .reminder,
+    static let councilBill = LetterCard(
+        type: .bill,
         senderKind: .council,
         action: "Pay the balance or set up a payment plan before the date in the letter.",
         deadline: "2026-12-03",
         deadlineQuote: "Please pay by 3 December 2026",
-        amountQuote: "£186.40",
+        amountQuote: "Please pay £184.50 by 3 December 2026",
         watchOuts: [
             "A missed payment can add costs.",
             "The letter names a recovery process.",
         ],
+        scamSigns: [],
+        noActionNeeded: false
+    )
+
+    static let billWithoutAmount = LetterCard(
+        type: .bill,
+        senderKind: .council,
+        action: "Pay the balance shown in the letter.",
+        deadline: "2026-12-03",
+        deadlineQuote: "Please pay by 3 December 2026",
+        amountQuote: nil,
+        watchOuts: [],
+        scamSigns: [],
+        noActionNeeded: false
+    )
+
+    static let billWithTwoFigures = LetterCard(
+        type: .penalty,
+        senderKind: .council,
+        action: "Pay the charge named in the letter.",
+        deadline: nil,
+        deadlineQuote: nil,
+        amountQuote: "£40 plus a £12 late fee",
+        watchOuts: [],
         scamSigns: [],
         noActionNeeded: false
     )
@@ -296,7 +387,7 @@ private enum LetterCardScreenPreview {
         action: "Bring this letter to your appointment.",
         deadline: nil,
         deadlineQuote: nil,
-        amountQuote: nil,
+        amountQuote: "Please pay £184.50 by 3 December 2026",
         watchOuts: [
             "The clinic can change the time.",
         ],
