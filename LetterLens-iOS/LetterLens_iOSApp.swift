@@ -5,16 +5,30 @@
 //  Created by BSTAR on 12/11/2026.
 //
 
-import SwiftUI
+import Foundation
 import SwiftData
+import SwiftUI
 
 @main
 struct LetterLens_iOSApp: App {
+    @State private var appConfig = AppConfig()
+
+    init() {
+        FirebaseBootstrap.configureIfPossible()
+    }
+
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let schema = Schema([LetterRecord.self])
+        let support = URL.applicationSupportDirectory
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        let storeURL = support.appending(path: "LetterLens.store")
+        // A new store file so this model does not collide with the old template Item store.
+        let modelConfiguration = ModelConfiguration(
+            "LetterLens",
+            schema: schema,
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -25,7 +39,26 @@ struct LetterLens_iOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Group {
+                #if DEBUG
+                if LetterHarness.isEnabled {
+                    LetterHarnessView()
+                } else {
+                    // Clear Ink is light only. Asset colours are Any appearance.
+                    RootView()
+                }
+                #else
+                RootView()
+                #endif
+            }
+            .preferredColorScheme(.light)
+            .environment(appConfig)
+            .task {
+                #if DEBUG
+                if LetterHarness.isEnabled { return }
+                #endif
+                await appConfig.fetchAndActivate()
+            }
         }
         .modelContainer(sharedModelContainer)
     }

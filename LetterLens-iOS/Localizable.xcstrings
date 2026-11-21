@@ -1,0 +1,17 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "disclaimer.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explains letters. Not legal or financial advice."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
