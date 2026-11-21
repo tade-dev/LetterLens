@@ -49,7 +49,7 @@ struct WhatGetsSentScreen: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .background(LLColor.ground.ignoresSafeArea())
-        .navigationTitle("Plan next steps")
+        .navigationTitle("What gets sent")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             actions
@@ -189,7 +189,7 @@ struct WhatGetsSentScreen: View {
 
     private var actions: some View {
         VStack(spacing: LLSpace.s) {
-            ClearInkGlassButton(sendTitle, kind: .prominent(LLColor.cloud)) {
+            ClearInkGlassButton(sendTitle, kind: .prominent(LLColor.ink)) {
                 Task { await sendAndPlan() }
             }
             .disabled(isPlanning)
