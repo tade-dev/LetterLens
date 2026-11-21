@@ -71,7 +71,7 @@ struct LetterCardScreen: View {
     }
 
     private var fromLine: String {
-        LetterRead(card: card, path: path, pageCount: pageCount).fromLine
+        LetterRead(card: card, path: path, pageCount: pageCount, ocrText: ocrText).fromLine
     }
 
     private var actionText: String {

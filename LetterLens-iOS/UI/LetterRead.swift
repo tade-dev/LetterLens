@@ -15,7 +15,7 @@ struct LetterRead: Equatable {
     var path: ReadingPath
     var pageCount: Int
     /// The scan's OCR text. Stored on `LetterRecord.ocrText`. Not a new field.
-    var ocrText: String = ""
+    var ocrText: String
     var modelVersion: String = ""
     var latencyMS: Int = 0
     var detailsRemoved: Int = 0
