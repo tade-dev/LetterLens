@@ -4,8 +4,8 @@
 //
 //  Screen 08. Pushed from Plan next steps. Shows the redacted letter.
 //  Send and plan calls the injected planner. The sample planner does not
-//  leave the device. If cloud fallback is off, or Never upload is on, this
-//  shows the keep-private sheet and does not plan.
+//  leave the device. A plan is always a cloud call, so Never upload on shows
+//  the keep-private sheet and does not plan.
 
 import SwiftData
 import SwiftUI
@@ -218,14 +218,10 @@ struct WhatGetsSentScreen: View {
 
     @ViewBuilder
     private var consentSheet: some View {
-        let flow = NextStepsConsent.blockedFlow(
-            neverUpload: preferences.neverUpload,
-            allowCloudFallback: preferences.allowCloudFallback
-        )
+        let flow = NextStepsConsent.blockedFlow(neverUpload: preferences.neverUpload)
         if let prompt = flow.prompt {
             UnsupportedDeviceSheet(
                 prompt: prompt,
-                keepPrivateCause: flow.keepPrivateCause ?? .cloudFallbackOff,
                 onReadInCloud: { showConsent = false },
                 onNotNow: { showConsent = false },
                 onKeepPrivate: { showConsent = false },
@@ -239,10 +235,7 @@ struct WhatGetsSentScreen: View {
 
     private func sendAndPlan() async {
         guard !isPlanning else { return }
-        let allowed = NextStepsConsent.allowsPlanning(
-            neverUpload: preferences.neverUpload,
-            allowCloudFallback: preferences.allowCloudFallback
-        )
+        let allowed = NextStepsConsent.allowsPlanning(neverUpload: preferences.neverUpload)
         guard allowed else {
             showConsent = true
             return
@@ -288,7 +281,6 @@ private enum ConsentFollowUp {
             ocrText: WhatGetsSentPreview.letter,
             preferences: PrivacySettingsModel(
                 neverUpload: false,
-                allowCloudFallback: true,
                 writesDefaults: false
             )
         )
@@ -303,7 +295,6 @@ private enum ConsentFollowUp {
             ocrText: WhatGetsSentPreview.letter,
             preferences: PrivacySettingsModel(
                 neverUpload: false,
-                allowCloudFallback: true,
                 writesDefaults: false
             )
         )

@@ -31,17 +31,17 @@ protocol NextStepsPlanner {
 }
 
 enum NextStepsConsent {
-    /// Cloud planning is allowed only when Never upload is off and cloud fallback is on.
-    static func allowsPlanning(neverUpload: Bool, allowCloudFallback: Bool) -> Bool {
-        !neverUpload && allowCloudFallback
+    /// A plan is always a cloud call, so Never upload is the only switch that blocks it.
+    /// Allowing it here is not consent: screen 08 still asks before anything is sent.
+    static func allowsPlanning(neverUpload: Bool) -> Bool {
+        !neverUpload
     }
 
     /// The keep-private sheet. On-device reading is irrelevant: a plan is not a local model call.
-    static func blockedFlow(neverUpload: Bool, allowCloudFallback: Bool) -> UnsupportedDeviceFlow {
+    static func blockedFlow(neverUpload: Bool) -> UnsupportedDeviceFlow {
         UnsupportedDeviceFlow(
             onDeviceSupported: false,
-            neverUpload: neverUpload,
-            allowCloudFallback: allowCloudFallback
+            neverUpload: neverUpload
         )
     }
 }

@@ -199,7 +199,7 @@ struct ScanEntryScreen: View {
 
     /// Cloud only after this scan's sheet. Otherwise the existing on-device route.
     private func readCard(_ text: String, path: ReadingPath) async throws -> CardReadResult {
-        let cloud = path == .cloud && preferences.allowCloudFallback && !preferences.neverUpload
+        let cloud = path == .cloud && !preferences.neverUpload
         let service = CardService(
             promptTemplate: config.cardPrompt,
             cardModel: config.cardModel,

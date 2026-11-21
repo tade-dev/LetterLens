@@ -132,19 +132,16 @@ struct HomeAndNextStepsTests {
         #expect(unnamed.steps.count == 3)
     }
 
-    @Test func planningIsRefusedUnlessCloudFallbackIsOn() {
-        #expect(NextStepsConsent.allowsPlanning(neverUpload: false, allowCloudFallback: false) == false)
-        let off = NextStepsConsent.blockedFlow(neverUpload: false, allowCloudFallback: false)
-        #expect(off.route == .keepPrivate)
-        #expect(off.showsCloudButton == false)
-        #expect(off.keepPrivateCause == .cloudFallbackOff)
-
-        #expect(NextStepsConsent.allowsPlanning(neverUpload: true, allowCloudFallback: true) == false)
-        let never = NextStepsConsent.blockedFlow(neverUpload: true, allowCloudFallback: true)
-        #expect(never.keepPrivateCause == .neverUpload)
+    @Test func planningIsRefusedOnlyWhenNeverUploadIsOn() {
+        // A plan is always a cloud call, so Never upload is the one switch that stops it.
+        #expect(NextStepsConsent.allowsPlanning(neverUpload: true) == false)
+        let never = NextStepsConsent.blockedFlow(neverUpload: true)
+        #expect(never.route == .keepPrivate)
         #expect(never.showsCloudButton == false)
+        #expect(never.isKeepPrivateBecauseNeverUpload)
 
-        #expect(NextStepsConsent.allowsPlanning(neverUpload: false, allowCloudFallback: true))
+        // Allowing it is not consent. Screen 08 still asks before anything is sent.
+        #expect(NextStepsConsent.allowsPlanning(neverUpload: false))
     }
 
     private func letter(
