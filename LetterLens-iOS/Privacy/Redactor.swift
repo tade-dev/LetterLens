@@ -175,7 +175,7 @@ struct Redactor {
             priority: 50
         )
         add(
-            #"(?i)\b[A-Z0-9]+(?:[-/][A-Z0-9]+){1,}\b"#,
+            #"\b[A-Z0-9]+(?:[-/][A-Z0-9]+){1,}\b"#,
             kind: .ref,
             priority: 52,
             accept: isSeparatedReference
@@ -219,14 +219,24 @@ struct Redactor {
         return .ref
     }
 
-    /// A hyphen or slash code with both a letter group and a digit group.
-    /// `WT-8841-QX` and `AB/12345/C` qualify. `Thank-you`, `£42.50`, and a UK postcode do not.
+    /// An uppercase hyphen or slash code with a letter and a run of at least three digits.
+    /// `WT-8841-QX` and `AB/12345/C` qualify. Lowercase words, short numbers, quarters,
+    /// and financial years do not.
     private static func isSeparatedReference(_ snippet: String) -> Bool {
+        let segments = snippet.split { $0 == "-" || $0 == "/" }
+        let hasLongDigitRun = segments.contains { segment in
+            segment.filter(\.isNumber).count >= 3
+        }
         let hasLetter = snippet.contains { $0.isLetter }
-        let hasDigit = snippet.contains { $0.isNumber }
-        guard hasLetter, hasDigit else { return false }
+        guard hasLongDigitRun, hasLetter else { return false }
+        if snippet.range(of: #"^Q[1-4]-\d{4}$"#, options: .regularExpression) != nil {
+            return false
+        }
+        if snippet.range(of: #"^FY\d{2,4}(-\d{2,4})?$"#, options: .regularExpression) != nil {
+            return false
+        }
         let compact = snippet.filter { $0.isLetter || $0.isNumber }
-        let postcode = #"^[A-Za-z]{1,2}\d[A-Za-z\d]?\d[A-Za-z]{2}$"#
+        let postcode = #"^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$"#
         return compact.range(of: postcode, options: .regularExpression) == nil
     }
 

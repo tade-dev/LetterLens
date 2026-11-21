@@ -69,7 +69,7 @@ import Testing
     }
 
     @Test func hyphenatedAndSlashedReferencesAreTokenised() {
-        let samples = ["WT-8841-QX", "AB/12345/C", "1234-ABCD"]
+        let samples = ["WT-8841-QX", "AB/12345/C", "1234-ABCD", "ISO-9001"]
         for sample in samples {
             let result = redactor.redact("Code \(sample) today.")
             #expect(!result.text.contains(sample))
@@ -82,12 +82,26 @@ import Testing
     }
 
     @Test func datesAmountsPostcodesAndPlainWordsAreNotReferences() {
-        let result = redactor.redact("Thank-you for £42.50 on 9 January 2027 at SW1A 1AA.")
-        #expect(result.text.contains("Thank-you"))
-        #expect(result.text.contains("£42.50"))
-        #expect(result.text.contains("9 January 2027"))
-        #expect(result.map.original(for: "[POSTCODE_1]") == "SW1A 1AA")
-        #expect(!result.text.contains("[REF_"))
+        let kept = [
+            "Thank-you",
+            "£42.50",
+            "9 January 2027",
+            "COVID-19",
+            "Q3-2026",
+            "mid-2026",
+            "pre-2020",
+            "FY2026-27",
+            "P45/P60",
+            "B-12",
+        ]
+        for phrase in kept {
+            let result = redactor.redact("Note \(phrase) today.")
+            #expect(result.text.contains(phrase))
+            #expect(!result.text.contains("[REF_"))
+        }
+        let postcode = redactor.redact("Write to SW1A 1AA today.")
+        #expect(postcode.map.original(for: "[POSTCODE_1]") == "SW1A 1AA")
+        #expect(!postcode.text.contains("[REF_"))
     }
 
     @Test func aSeparatorBetweenRedactedSpansIsKeptAndRoundTrips() {
