@@ -70,6 +70,7 @@ struct LetterCardScreen: View {
             WhatGetsSentScreen(
                 card: card,
                 ocrText: ocrText,
+                path: path,
                 preferences: preferences,
                 planner: planner,
                 availability: availability

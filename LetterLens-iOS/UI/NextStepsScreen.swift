@@ -4,6 +4,7 @@
 //
 //  Screen 09. Shown after a plan comes back. The script's tokens are filled
 //  in here, on this iPhone. Copy uses the filled-in words.
+//  The pill matches screens 05 and 06. "Planned in the cloud" is only for a real cloud plan.
 
 import SwiftUI
 import UIKit
@@ -11,6 +12,7 @@ import UIKit
 struct NextStepsScreen: View {
     var plan: NextStepsPlan
     var map: RedactionMap
+    var path: ReadingPath = .device
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var appeared = false
@@ -22,8 +24,10 @@ struct NextStepsScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: LLSpace.l) {
-                headline
+                provenance
                     .letterCardEntrance(index: 0, appeared: appeared)
+                headline
+                    .letterCardEntrance(index: 1, appeared: appeared)
                 if !plan.steps.isEmpty {
                     stepsCard
                 }
@@ -39,14 +43,8 @@ struct NextStepsScreen: View {
         .background(LLColor.ground.ignoresSafeArea())
         .navigationTitle("Next steps")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                LLProvenanceBadge(kind: .cloudPlanned)
-            }
-            .sharedBackgroundVisibility(.hidden)
-        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Text("General guidance, not legal or financial advice. For free help, contact Citizens Advice.")
+            Text(LetterCopy.disclaimerShort)
                 .font(LLFont.caption)
                 .foregroundStyle(LLColor.inkSecondary)
                 .multilineTextAlignment(.center)
@@ -65,6 +63,17 @@ struct NextStepsScreen: View {
         }
         .preferredColorScheme(.light)
         .onAppear { appeared = true }
+    }
+
+    /// Cloud only when this plan was actually made in the cloud. The local sample follows the letter's read path.
+    private var provenanceKind: Provenance {
+        plan.madeInCloud ? .cloudPlanned : path.letterProvenance
+    }
+
+    private var provenance: some View {
+        LLProvenanceBadge(kind: provenanceKind)
+            .accessibilityElement(children: .combine)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var scriptPlain: String {

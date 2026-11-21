@@ -13,6 +13,7 @@ import SwiftUI
 struct WhatGetsSentScreen: View {
     var card: LetterCard
     var ocrText: String
+    var path: ReadingPath = .device
     var preferences: PrivacySettingsModel
     var planner: any NextStepsPlanner = LocalSampleNextStepsPlanner()
     var availability: OnDeviceReadingAvailability = .available
@@ -56,7 +57,7 @@ struct WhatGetsSentScreen: View {
         }
         .navigationDestination(isPresented: $showPlan) {
             if let finishedPlan {
-                NextStepsScreen(plan: finishedPlan, map: redaction.map)
+                NextStepsScreen(plan: finishedPlan, map: redaction.map, path: path)
             }
         }
         .navigationDestination(isPresented: $showPrivacy) {
@@ -198,6 +199,12 @@ struct WhatGetsSentScreen: View {
                 .foregroundStyle(LLColor.ink)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: LLSize.touchMin)
+            Text(LetterCopy.disclaimerShort)
+                .font(LLFont.caption)
+                .foregroundStyle(LLColor.inkSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, LLSpace.screen)
         .padding(.top, LLSpace.m)
