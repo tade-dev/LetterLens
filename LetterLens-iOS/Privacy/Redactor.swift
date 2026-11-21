@@ -222,7 +222,7 @@ struct Redactor {
     /// An uppercase hyphen or slash code with a letter and a run of at least three digits.
     /// `WT-8841-QX` and `AB/12345/C` qualify. Lowercase words, short numbers, quarters,
     /// and financial years do not.
-    private static func isSeparatedReference(_ snippet: String) -> Bool {
+    nonisolated private static func isSeparatedReference(_ snippet: String) -> Bool {
         let segments = snippet.split { $0 == "-" || $0 == "/" }
         let hasLongDigitRun = segments.contains { segment in
             segment.filter(\.isNumber).count >= 3
