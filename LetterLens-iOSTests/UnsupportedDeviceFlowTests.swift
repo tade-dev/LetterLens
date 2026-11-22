@@ -64,8 +64,11 @@ struct UnsupportedDeviceFlowTests {
     }
 
     @Test func neverUploadFootnoteChangesWithTheSwitch() {
-        #expect(NeverUploadCopy.footnote(isOn: true) == "Everything stays on this phone. “Plan next steps” is turned off.")
-        #expect(NeverUploadCopy.footnote(isOn: false) == "Letters are read on this phone. If that isn't possible, or you ask for a plan, we'll show you what gets sent and ask first.")
+        #expect(NeverUploadCopy.footnote(isOn: true) == "Everything stays on this iPhone. “Plan next steps” is turned off.")
+        #expect(NeverUploadCopy.footnote(isOn: false) == "Letters are read on this iPhone. If that isn’t possible, or you ask for a plan, we’ll show you what gets sent and ask first.")
+        // The status row right above it has just said on-device reading is unavailable.
+        #expect(NeverUploadCopy.footnote(isOn: false, canReadOnDevice: false) == "This iPhone can’t read letters on its own, so we’ll show you what gets sent and ask first.")
+        #expect(NeverUploadCopy.footnote(isOn: true, canReadOnDevice: false) == NeverUploadCopy.footnote(isOn: true))
     }
 
     @Test func readyStatusUsesDeviceGreenAndUnavailableStaysNeutral() {

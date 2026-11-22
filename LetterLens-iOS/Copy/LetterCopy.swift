@@ -14,4 +14,7 @@ enum LetterCopy {
     )
 
     static let photosNeverLeave = "Photos never leave this iPhone."
+
+    /// The scam hero on screen 06, and the summary line Home shows in its place.
+    static let stopBeforeYouPay = String(localized: "Stop before you pay or click")
 }

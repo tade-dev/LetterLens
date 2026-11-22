@@ -78,7 +78,7 @@ struct ScamWarningScreen: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(LLFont.badge)
                     .accessibilityHidden(true)
-                Text("Stop before you pay or click")
+                Text(LetterCopy.stopBeforeYouPay)
                     .font(LLFont.badge)
                     .fixedSize(horizontal: false, vertical: true)
             }

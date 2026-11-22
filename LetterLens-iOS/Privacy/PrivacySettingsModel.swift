@@ -29,11 +29,17 @@ enum PrivacyPreference {
 }
 
 enum NeverUploadCopy {
-    static func footnote(isOn: Bool) -> String {
+    /// `canReadOnDevice` is false on an iPhone without Apple Intelligence.
+    /// Saying "letters are read on this phone" there contradicts the status row
+    /// directly above it, which has just said on-device reading is unavailable.
+    static func footnote(isOn: Bool, canReadOnDevice: Bool = true) -> String {
         if isOn {
-            return String(localized: "Everything stays on this phone. “Plan next steps” is turned off.")
+            return String(localized: "Everything stays on this iPhone. “Plan next steps” is turned off.")
         }
-        return String(localized: "Letters are read on this phone. If that isn't possible, or you ask for a plan, we'll show you what gets sent and ask first.")
+        if !canReadOnDevice {
+            return String(localized: "This iPhone can’t read letters on its own, so we’ll show you what gets sent and ask first.")
+        }
+        return String(localized: "Letters are read on this iPhone. If that isn’t possible, or you ask for a plan, we’ll show you what gets sent and ask first.")
     }
 }
 

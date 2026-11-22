@@ -204,11 +204,17 @@ struct HomeScreen: View {
             HomeLetterLists.trailingDate(letter, section: .needsAction, now: now),
             now: now
         )
-        let action = letter.card.action.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A scam letter's `action` is the scam's own demand: "Pay a £49.99 fee and
+        // provide your online banking password." In a list that reads as though
+        // LetterLens is telling you to do it. Screen 06 demotes it to
+        // "What it claims to be"; here it gives way to the warning.
+        let summary = letter.card.opensScamWarning
+            ? LetterCopy.stopBeforeYouPay
+            : letter.card.action.trimmingCharacters(in: .whitespacesAndNewlines)
         return VStack(alignment: .leading, spacing: LLSpace.s) {
             titleAndDate(title: letter.card.displayTitle, date: date)
-            if !action.isEmpty {
-                Text(verbatim: action)
+            if !summary.isEmpty {
+                Text(verbatim: summary)
                     .clearInkBody14()
                     .foregroundStyle(LLColor.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)

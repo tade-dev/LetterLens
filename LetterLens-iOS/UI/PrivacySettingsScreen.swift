@@ -131,7 +131,10 @@ struct PrivacySettingsScreen: View {
                 Text("Never upload")
                     .font(LLFont.body.weight(.semibold))
                     .foregroundStyle(LLColor.ink)
-                Text(NeverUploadCopy.footnote(isOn: preferences.neverUpload))
+                Text(NeverUploadCopy.footnote(
+                    isOn: preferences.neverUpload,
+                    canReadOnDevice: availability == .available
+                ))
                     .font(.footnote)
                     .foregroundStyle(LLColor.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
