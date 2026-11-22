@@ -22,7 +22,10 @@ struct UnsupportedDeviceSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Namespace private var actionGlass
-    @State private var appeared = false
+    /// Drives the tick bounce only. The sheet's own presentation is its entrance,
+    /// so nothing here starts invisible: gating opacity on this as well made the
+    /// sheet slide up empty and fill in afterwards.
+    @State private var bounce = false
     @State private var didAppear = false
     @State private var detent: PresentationDetent = .large
     @State private var choice = SheetChoiceRecord()
@@ -53,18 +56,14 @@ struct UnsupportedDeviceSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: LLSpace.blockLoose) {
                 hero
-                    .clearInkEntrance(index: 0, appeared: appeared)
                 titleBlock
-                    .clearInkEntrance(index: 1, appeared: appeared)
                 if prompt == .cloudFallback {
                     protections
                 }
                 if prompt == .keepPrivate {
                     keepPrivatePanel
-                        .clearInkEntrance(index: 2, appeared: appeared)
                 }
                 actions
-                    .clearInkEntrance(index: 5, appeared: appeared)
             }
             .padding(.horizontal, LLSpace.screen)
             .padding(.top, LLSpace.s)
@@ -81,7 +80,7 @@ struct UnsupportedDeviceSheet: View {
         .sensoryFeedback(.selection, trigger: settingsTaps)
         .preferredColorScheme(.light)
         .onAppear {
-            appeared = true
+            bounce = true
             didAppear = true
         }
         .onDisappear {
@@ -106,7 +105,7 @@ struct UnsupportedDeviceSheet: View {
             side: heroSide,
             symbolSize: heroSymbol,
             cornerRadius: LLRadius.tile,
-            bounceTrigger: appeared
+            bounceTrigger: bounce
         )
     }
 
@@ -175,7 +174,7 @@ struct UnsupportedDeviceSheet: View {
             Image(systemName: "checkmark")
                 .font(.system(size: checkSize, weight: .bold))
                 .foregroundStyle(LLColor.device)
-                .modifier(ClearInkCheckBounce(trigger: appeared))
+                .modifier(ClearInkCheckBounce(trigger: bounce))
                 .accessibilityHidden(true)
             Text(text)
                 .clearInkBody14()
@@ -183,7 +182,6 @@ struct UnsupportedDeviceSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .clearInkEntrance(index: index + 2, appeared: appeared)
     }
 
     private var actions: some View {

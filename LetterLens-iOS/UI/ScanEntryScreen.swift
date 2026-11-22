@@ -39,6 +39,8 @@ struct ScanEntryScreen: View {
     /// that sheet has actually gone, because presenting the unsupported-device
     /// sheet while another is still dismissing loses it.
     @State private var pendingPicked: [UIImage] = []
+    /// Stops the two triggers both starting a read for the same pick.
+    @State private var isOpeningPicked = false
     @State private var pendingImages: [UIImage] = []
     @State private var pages: [UIImage] = []
     @State private var readingProgress: ReadingProgress?
@@ -319,15 +321,28 @@ struct ScanEntryScreen: View {
     }
 
     /// Starts the read once no picker is on screen. `openReading` may present the
-    /// unsupported-device sheet, and SwiftUI drops that presentation if another
-    /// sheet is still going away. The camera path already waits, through
-    /// `fullScreenCover(onDismiss:)`; this is the same wait for the other two.
+    /// unsupported-device sheet, and SwiftUI drops that presentation while another
+    /// sheet is still going away.
+    ///
+    /// `isPresented` flips to false when dismissal *begins*, not when it ends, so
+    /// waiting on the binding alone is not enough: the sheet still appeared for a
+    /// frame and vanished. The pause covers the rest of the dismissal. The camera
+    /// path needs none of this, because `fullScreenCover(onDismiss:)` fires after
+    /// the cover has actually gone.
     private func openPickedWhenSheetIsGone() {
-        guard !showPhotos, !showPDF, !pendingPicked.isEmpty else { return }
+        guard !showPhotos, !showPDF, !pendingPicked.isEmpty, !isOpeningPicked else { return }
+        isOpeningPicked = true
         let images = pendingPicked
         pendingPicked = []
-        openReading(images)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(ScanEntryScreen.pickerDismissSettle))
+            isOpeningPicked = false
+            openReading(images)
+        }
     }
+
+    /// Long enough for the picker's dismissal to finish on a slow device.
+    static let pickerDismissSettle = 420
 
     private func openPendingScan() {
         let images = pendingScan
