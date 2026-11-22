@@ -74,6 +74,19 @@ OCR stays on device (`RecognizeDocumentsRequest`, falling back to `VNRecognizeTe
 
 The badge is **Read on this iPhone** or **Read in the cloud**, from `response.rawResponse.modelVersion`. On-device is reported as `apple-foundation-models-system-language-model`.
 
+## Hosting the web app
+
+`firebase.json` deploys `web/app/dist` to Firebase Hosting. Build first, then deploy:
+
+```bash
+cd web/app && npm install && npm run build
+cd ../.. && firebase deploy --only hosting
+```
+
+That publishes to `https://letterlens-ios.web.app` (substitute your own project). `firebase deploy --only hosting --dry-run` checks the config without shipping anything.
+
+The App Check debug token is read only under `import.meta.env.DEV`, so a production build drops that branch and the token is never in `dist/`. A hosted build needs `VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY` instead. Without one, App Check does not start, the page says so, and **cloud reads stay off** — on-device reading in Chrome still works.
+
 ## Share sheet
 
 `LetterLensShare` is a Share Extension. Sharing a photo or PDF from Mail, Files or Photos offers **LetterLens**, and the letter opens in the reading screen.
