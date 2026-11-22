@@ -80,7 +80,7 @@ enum ScamHelp {
         case .council:
             "Find your council on GOV.UK and call the number on their own website."
         case .hmrc:
-            "Search GOV.UK for HMRC's contact details. HMRC never asks for a fee to release a refund."
+            "Search GOV.UK for HMRC’s contact details. HMRC never asks for a fee to release a refund."
         case .bank:
             "Call the number on the back of your bank card, or the one inside your banking app."
         case .benefits:
@@ -88,7 +88,7 @@ enum ScamHelp {
         case .school:
             "Call the school on a number you already have, or the one on its own website."
         case .utility:
-            "Call the number on a bill you already have, or on your supplier's own website."
+            "Call the number on a bill you already have, or on your supplier’s own website."
         case .landlord:
             "Use a number from your tenancy agreement or an earlier letter."
         case .nhs:

@@ -143,7 +143,7 @@ struct HomeAndNextStepsTests {
             card: card,
             note: "  "
         )
-        #expect(unnamed.script == "Hello. I'd like to talk about the letter I was sent.")
+        #expect(unnamed.script == "Hello. I’d like to talk about the letter I was sent.")
         #expect(!unnamed.script.contains("["))
         #expect(unnamed.madeInCloud == false)
         #expect(unnamed.steps.count == 3)

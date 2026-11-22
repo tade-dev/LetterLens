@@ -87,7 +87,7 @@ struct WhatGetsSentScreen: View {
 
     private var headline: some View {
         VStack(alignment: .leading, spacing: LLSpace.s) {
-            Text("Here's exactly what we'll send")
+            Text("Here’s exactly what we’ll send")
                 .font(LLFont.displayS)
                 .tracking(-0.4)
                 .foregroundStyle(LLColor.ink)
@@ -184,7 +184,7 @@ struct WhatGetsSentScreen: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(LLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            TextField("e.g. I can't afford it this month", text: $note, axis: .vertical)
+            TextField("e.g. I can’t afford it this month", text: $note, axis: .vertical)
                 .lineLimit(2...4)
                 .font(LLFont.body)
                 .foregroundStyle(LLColor.ink)

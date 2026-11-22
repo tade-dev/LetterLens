@@ -26,8 +26,14 @@ export function cleaned(text: string): string {
 }
 
 function claimsMatch(sentence: string): boolean {
-  const lowered = sentence.toLowerCase();
+  const lowered = flattenApostrophes(sentence.toLowerCase());
   return CLAIMS.some((claim) => lowered.includes(claim));
+}
+
+/** A model writes "it’s safe" as readily as "it's safe". The claims above are
+ *  written with the straight one, so the sentence is flattened to match. */
+function flattenApostrophes(text: string): string {
+  return text.replace(/[\u2019\u2018\u02BC\u00B4`]/g, "'");
 }
 
 function splitSentences(text: string): string[] {

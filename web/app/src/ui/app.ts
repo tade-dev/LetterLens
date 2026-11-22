@@ -415,7 +415,7 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
     warning.textContent = "This letter has signs of a scam";
     const caveat = el("p", { className: "note" });
     caveat.textContent =
-      "We can't be sure. Check with the sender using contact details you find yourself.";
+      "We can’t be sure. Check with the sender using contact details you find yourself.";
     host.append(warning, caveat);
     host.append(
       section(

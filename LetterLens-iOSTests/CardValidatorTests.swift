@@ -150,6 +150,16 @@ import Testing
         #expect(validated.action.contains("Pay the balance."))
     }
 
+    /// Gemini writes "it’s safe" as readily as "it's safe". The guard matched
+    /// only the straight apostrophe, so the typographic one went straight through.
+    @Test func aSafetyClaimIsCaughtWithEitherApostrophe() {
+        for apostrophe in ["'", "\u{2019}", "\u{02BC}"] {
+            #expect(SafetyCopy.cleaned("It\(apostrophe)s safe.") == SafetyCopy.replacement)
+            #expect(SafetyCopy.cleaned("This isn\(apostrophe)t a scam.") == SafetyCopy.replacement)
+        }
+        #expect(SafetyCopy.cleaned("Pay the balance.") == "Pay the balance.")
+    }
+
     private func sample(deadline: String?, deadlineQuote: String?, amountQuote: String?) -> LetterCard {
         LetterCard(
             type: .reminder,

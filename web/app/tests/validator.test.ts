@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { parseModelCard, stripOneFence } from "../src/card/parse.js";
 import { opensScamWarning, type LetterCard } from "../src/card/schema.js";
 import { validateCard } from "../src/card/validator.js";
+import { cleaned, SAFETY_REPLACEMENT } from "../src/card/safety.js";
 
 const LETTER = "Pay by 3 March 2027. The balance is £42.50. A further notice may follow.";
 
@@ -115,4 +116,12 @@ test("a quoted scam sign switches the card to the warning layout", () => {
 
   const ordinary: LetterCard = { ...sampleCard(), scamSigns: [] };
   assert.equal(opensScamWarning(ordinary), false);
+});
+
+test("a safety claim is caught with either apostrophe", () => {
+  for (const apostrophe of ["'", "’", "ʼ"]) {
+    assert.equal(cleaned(`It${apostrophe}s safe.`), SAFETY_REPLACEMENT);
+    assert.equal(cleaned(`This isn${apostrophe}t a scam.`), SAFETY_REPLACEMENT);
+  }
+  assert.equal(cleaned("Pay the balance."), "Pay the balance.");
 });
