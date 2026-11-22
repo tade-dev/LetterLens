@@ -178,6 +178,16 @@ struct ReadingScreen: View {
                             )
                         }
                         .clipped()
+                        // A letter is mostly white paper on a white panel, so without
+                        // an edge the page has no visible boundary and the blank part
+                        // of the sheet reads as a layout mistake. Screen 04 draws the
+                        // page as its own bordered rectangle inside the panel.
+                        .clipShape(RoundedRectangle(cornerRadius: LLRadius.iconButton, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: LLRadius.iconButton, style: .continuous)
+                                .strokeBorder(LLColor.line, lineWidth: 1)
+                                .frame(width: rect.width, height: rect.height)
+                        }
                         .position(x: rect.midX, y: rect.midY)
                         .id(displayedIndex)
                         .transition(.opacity)
@@ -186,6 +196,7 @@ struct ReadingScreen: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .animation(pageAnimation, value: displayedIndex)
         }
+        .padding(LLSpace.m)
         .frame(maxWidth: .infinity)
         .frame(height: previewHeight)
         .background(LLColor.surface, in: RoundedRectangle(cornerRadius: LLRadius.panel, style: .continuous))
