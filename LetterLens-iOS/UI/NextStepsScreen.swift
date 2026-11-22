@@ -81,7 +81,18 @@ struct NextStepsScreen: View {
     }
 
     private var scriptPlain: String {
-        ScriptReinsertion.plain(in: plan.script, map: map)
+        plain(plan.script)
+    }
+
+    /// The plan comes back from the cloud still holding redaction tokens.
+    /// `[ACCOUNT_1]` means nothing to someone reading a step, so the detail
+    /// goes back in here, on this iPhone, as a chip.
+    private func filledIn(_ text: String) -> AttributedString {
+        RedactionAttributedText.inline(text: text, map: map, reinsert: true)
+    }
+
+    private func plain(_ text: String) -> String {
+        ScriptReinsertion.plain(in: text, map: map)
     }
 
     private var headline: some View {
@@ -115,11 +126,11 @@ struct NextStepsScreen: View {
                 .background(LLColor.ink, in: Circle())
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: LLSpace.xxs) {
-                Text(verbatim: step.title)
+                Text(filledIn(step.title))
                     .font(LLFont.body.weight(.semibold))
                     .foregroundStyle(LLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: step.detail)
+                Text(filledIn(step.detail))
                     .clearInkBody14()
                     .foregroundStyle(LLColor.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -127,7 +138,7 @@ struct NextStepsScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(number). \(step.title). \(step.detail)")
+        .accessibilityLabel("Step \(number). \(plain(step.title)). \(plain(step.detail))")
     }
 
     private var scriptCard: some View {
@@ -158,7 +169,7 @@ struct NextStepsScreen: View {
                         .font(LLFont.body)
                         .foregroundStyle(LLColor.inkSecondary)
                         .accessibilityHidden(true)
-                    Text(source)
+                    Text(filledIn(source))
                         .font(LLFont.body)
                         .foregroundStyle(LLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)

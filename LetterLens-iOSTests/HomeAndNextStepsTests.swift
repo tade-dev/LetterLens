@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Testing
 @testable import LetterLens_iOS
 
@@ -96,6 +97,22 @@ struct HomeAndNextStepsTests {
         #expect(ScriptReinsertion.plain(in: "Hello [NAME_1].", map: map) == "Hello Jane Smith.")
         #expect(ScriptReinsertion.spokenRedacted("Dear [NAME_1], ref [REF_1].") == "Dear name removed, ref reference removed.")
         #expect(ScriptReinsertion.firstToken(in: "See [REF_1] and [NAME_1].", kind: "NAME") == "[NAME_1]")
+    }
+
+    /// A cloud plan comes back holding tokens. A step that still reads
+    /// "account [ACCOUNT_1]" is not a next step anyone can follow.
+    @Test func planStepsFillTheirTokensInOnTheDevice() {
+        let map = RedactionMap(entries: [
+            RedactionMap.Entry(token: "[ACCOUNT_1]", original: "40118827", kind: "ACCOUNT"),
+            RedactionMap.Entry(token: "[PHONE_2]", original: "0800 123 4567", kind: "PHONE"),
+        ])
+        let detail = "Check account [ACCOUNT_1], then call on [PHONE_2]."
+        let filled = RedactionAttributedText.inline(text: detail, map: map, reinsert: true)
+        let shown = String(filled.characters)
+        #expect(shown == "Check account 40118827, then call on 0800 123 4567.")
+        #expect(!shown.contains("["))
+        let chipped = filled.runs.filter { $0.backgroundColor != nil }.map { String(filled[$0.range].characters) }
+        #expect(chipped == ["40118827", "0800 123 4567"])
     }
 
     @Test func samplePlannerKeepsTokensAndDoesNotInventAName() async {

@@ -63,3 +63,17 @@ test("a titled name and a PO Box are removed", () => {
   assert.equal(result.text.includes("Sam Sample"), false);
   assert.equal(result.text.includes("PO Box 123"), false);
 });
+
+test("the recipient block is tokenised line by line", () => {
+  const result = redact("Mr A Patel\nFlat 4\n12 Elm Road\nManchester\nM14 5RT\n\nDear Mr Patel,");
+  assert.equal(result.text.includes("Mr A Patel"), false);
+  assert.equal(result.text.includes("Flat 4"), false);
+  assert.equal(result.text.includes("M14 5RT"), false);
+  assert.ok(result.map.entries.some((entry) => entry.original === "Mr A Patel"));
+  assert.ok(result.map.entries.some((entry) => entry.original === "Flat 4" && entry.kind === "ADDRESS"));
+});
+
+test("ordinary lines are not mistaken for a recipient", () => {
+  const result = redact("Council tax bill\nYour account is in arrears\nPlease pay now");
+  assert.equal(result.text, "Council tax bill\nYour account is in arrears\nPlease pay now");
+});

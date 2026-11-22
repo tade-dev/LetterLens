@@ -19,6 +19,35 @@ import Testing
         #expect(result.text.contains("Dear"))
     }
 
+    /// The address block at the head of a letter. Before this, only "Dear ..."
+    /// was caught, so the recipient line and the flat number went to the cloud.
+    @Test func theRecipientBlockIsTokenisedLineByLine() {
+        let letter = """
+        Mr A Patel
+        Flat 4
+        12 Elm Road
+        Manchester
+        M14 5RT
+
+        Dear Mr Patel,
+        """
+        let result = redactor.redact(letter)
+        #expect(!result.text.contains("Mr A Patel"))
+        #expect(!result.text.contains("Flat 4"))
+        #expect(result.text.contains("[NAME_1]"))
+        #expect(result.map.original(for: "[NAME_1]") == "Mr A Patel")
+        #expect(result.map.entries.contains { $0.original == "Flat 4" && $0.kind == "ADDRESS" })
+        #expect(!result.text.contains("M14 5RT"))
+    }
+
+    /// A line that merely starts a sentence is not a recipient.
+    @Test func ordinaryLinesAreNotMistakenForARecipient() {
+        let result = redactor.redact("Council tax bill\nYour account is in arrears\nPlease pay now")
+        #expect(result.text.contains("Council tax bill"))
+        #expect(result.text.contains("Your account is in arrears"))
+        #expect(result.text.contains("Please pay now"))
+    }
+
     @Test func genericSalutationIsLeftAlone() {
         let result = redactor.redact("Dear Sir or Madam, there is nothing to pay.")
         #expect(!result.text.contains("[NAME_"))

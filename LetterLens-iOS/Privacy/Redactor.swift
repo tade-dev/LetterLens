@@ -180,6 +180,21 @@ struct Redactor {
             priority: 52,
             accept: isSeparatedReference
         )
+        // The address block at the top of a letter. The salutation rule below only
+        // catches "Dear ...", so a recipient line of its own ("Mr A Patel") and a
+        // flat number went to the cloud in plain text.
+        add(
+            #"(?m)^[ \t]*((?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Sir|Dame|Lady|Rev)\.?[ \t]+[A-Z][A-Za-z'\x{2019}\-]*(?:[ \t]+[A-Z][A-Za-z'\x{2019}\-]*\.?){0,3})[ \t]*,?[ \t]*$"#,
+            kind: .name,
+            priority: 46,
+            group: 1
+        )
+        add(
+            #"(?im)^[ \t]*((?:flat|apartment|apt|unit|room)[ \t]+\d{1,4}[A-Za-z]?)[ \t]*,?[ \t]*$"#,
+            kind: .address,
+            priority: 41,
+            group: 1
+        )
         add(
             #"(?i)\b(?:dear|hello|hi)\s+([^,\n]{1,80}?)(?=\s*[,.\n])"#,
             kind: .name,
