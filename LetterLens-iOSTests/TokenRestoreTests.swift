@@ -31,6 +31,25 @@ import Testing
         #expect(CardFieldRestore.text("Reference [NAME_2].", map: amountMap) == nil)
     }
 
+    /// The guard used to fire on an opening bracket followed by letters, with the
+    /// closing bracket optional. "[ADDRESS LINE 1]" matched on "[ADDRESS" alone, so a
+    /// correct deadline whose quote contained the phrase was thrown away. Letters 1, 3
+    /// and 15 of the test kit lost a deadline the model had read correctly.
+    @Test func bracketedTextInTheLetterIsNotTreatedAsAToken() {
+        let sentence = "Pay by 17 November 2026 or bailiffs will be sent to [ADDRESS LINE 1] on the same day."
+        #expect(CardFieldRestore.text(sentence, map: amountMap) == sentence)
+
+        let instalment = "Your first remaining instalment of E[INSTALMENT AMOUNT] is due on 1 December 2026."
+        #expect(CardFieldRestore.text(instalment, map: amountMap) == instalment)
+    }
+
+    /// Tightening the guard must not let a real token through.
+    @Test func aClosedOrNumberedTokenIsStillCaught() {
+        for leftover in ["[NAME_2]", "See S[ACCOUNT) today.", "Ref [REF_10]", "ends with [POSTCODE]"] {
+            #expect(CardFieldRestore.text(leftover, map: amountMap) == nil, "\(leftover) must be dropped")
+        }
+    }
+
     @Test func textWithNoTokenIsUnchanged() {
         let plain = "Pay £10 by Friday."
         #expect(CardFieldRestore.text(plain, map: amountMap) == plain)
