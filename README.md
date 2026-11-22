@@ -16,7 +16,7 @@ There is also a Chrome web app in [web/app](web/app/README.md). It reads on devi
 
 ## GoogleService-Info.plist
 
-The file is gitignored because this repository is public. The app still compiles without it. At launch, a missing plist is logged and `FirebaseApp.configure()` is skipped. Remote Config then stays on the bundled defaults.
+The file is gitignored because this repository is public, so a fresh clone does not build until you add one. The Check GoogleService-Info.plist script phase fails with a message naming the path. Nothing in the app works without it: every route, on-device reading included, goes through a `FirebaseAI` instance that needs a configured `FirebaseApp`.
 
 Xcode 27's JSON project format has no optional-resource attribute. A permanent file reference to a missing plist would fail the Copy Bundle Resources phase in CI. `LetterLens-iOS` is a synchronized folder (`kind: folder` in `project.xcproj`), so the file joins the LetterLens-iOS target on its own once it is present.
 
