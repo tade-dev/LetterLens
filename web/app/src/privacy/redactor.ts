@@ -154,7 +154,19 @@ function candidates(text: string): Span[] {
       return name.length >= 2 && !GENERIC_NAMES.has(name.toLowerCase());
     },
   );
-  add(/\b(?:Mr|Mrs|Ms|Miss|Mx|Dr)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\b/g, "NAME", 44);
+  // Initials count: "Mr A Patel" at the head of a letter is still a name.
+  add(
+    /\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Sir|Dame|Lady|Rev)\.?[ \t]+[A-Z][A-Za-z'\u2019-]*\.?(?:[ \t]+[A-Z][A-Za-z'\u2019-]*\.?){0,2}/g,
+    "NAME",
+    44,
+  );
+  // A flat or unit line in the address block, on a line of its own.
+  add(
+    /^[ \t]*((?:flat|apartment|apt|unit|room)[ \t]+\d{1,4}[a-z]?)[ \t]*,?[ \t]*$/gim,
+    "ADDRESS",
+    43,
+    1,
+  );
   add(
     /(?:^|\n)\s*(?:address|property)\s*:\s*([^\n]{5,160})/gi,
     "ADDRESS",
