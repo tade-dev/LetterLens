@@ -20,7 +20,8 @@ struct LetterCardScreen: View {
     var letterID: UUID? = nil
     var completion: LetterCompletion? = nil
     var preferences: PrivacySettingsModel = PrivacySettingsModel(writesDefaults: false)
-    var planner: any NextStepsPlanner = LocalSampleNextStepsPlanner()
+    /// Forwarded to screen 08. Nil means the real cloud planner.
+    var planner: (any NextStepsPlanner)?
     var availability: OnDeviceReadingAvailability = .available
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize

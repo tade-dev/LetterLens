@@ -33,8 +33,12 @@ struct NextStepsScreen: View {
                 }
                 scriptCard
                     .letterCardEntrance(index: plan.steps.count + 1, appeared: appeared)
+                if !plan.whereToGetHelp.isEmpty {
+                    helpCard
+                        .letterCardEntrance(index: plan.steps.count + 2, appeared: appeared)
+                }
                 restoredRow
-                    .letterCardEntrance(index: plan.steps.count + 2, appeared: appeared)
+                    .letterCardEntrance(index: plan.steps.count + 3, appeared: appeared)
             }
             .padding(LLSpace.screen)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -137,6 +141,30 @@ struct NextStepsScreen: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(LLSpace.card)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LLColor.surface, in: RoundedRectangle(cornerRadius: LLRadius.card, style: .continuous))
+    }
+
+    /// Free, official or charity sources from the plan. Screen 09 calls for these.
+    /// Shown as plain text: these are not links, and nothing here is advice.
+    private var helpCard: some View {
+        VStack(alignment: .leading, spacing: LLSpace.s) {
+            LLSectionLabel(text: "Where to get help")
+            ForEach(Array(plan.whereToGetHelp.enumerated()), id: \.offset) { _, source in
+                HStack(alignment: .firstTextBaseline, spacing: LLSpace.s) {
+                    Image(systemName: "info.circle")
+                        .font(LLFont.body)
+                        .foregroundStyle(LLColor.inkSecondary)
+                        .accessibilityHidden(true)
+                    Text(source)
+                        .font(LLFont.body)
+                        .foregroundStyle(LLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(LLSpace.card)
         .frame(maxWidth: .infinity, alignment: .leading)
