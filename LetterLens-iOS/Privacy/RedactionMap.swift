@@ -53,9 +53,15 @@ struct RedactionMap: Equatable {
     }
 
     /// A bracketed token, or a broken piece of one, is still visible.
+    ///
+    /// A token is one unbroken word: `[NAME_1]`, or a damaged `S[AMOUNT)`. The kind must
+    /// be closed by `_1`, by a bracket, or by both. Without that, an opening bracket
+    /// followed by letters is just text the letter itself contains, and a quote like
+    /// "bailiffs will be sent to [ADDRESS LINE 1]" is a sentence, not a leaked token.
+    /// Matching those dropped correct deadlines on letters 1, 3 and 15 of the test kit.
     static func containsTokenFragment(_ text: String) -> Bool {
         let patterns = [
-            #"(?i)(?<![A-Za-z0-9])[A-Za-z]?[\[\(][A-Za-z][A-Za-z0-9]*(?:_\d+)?[\]\)]?"#,
+            #"(?i)(?<![A-Za-z0-9])[A-Za-z]?[\[\(][A-Za-z][A-Za-z0-9]*(?:_\d+[\]\)]?|[\]\)])"#,
             #"(?i)(?<![A-Za-z0-9])[A-Za-z][A-Za-z0-9]*_\d+[\]\)]"#,
         ]
         return patterns.contains { pattern in
