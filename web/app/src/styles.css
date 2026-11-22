@@ -312,11 +312,14 @@ blockquote {
   color: var(--ink);
 }
 
+/* Neutral by brand rule: green and blue mean "where it was read" and nothing
+   else. A green panel under "This letter has signs of a scam" reads as
+   reassurance, which is the opposite of what the card is saying. */
 .note {
   margin-top: 0;
   padding: 0.7rem 0.8rem;
-  background: var(--device);
-  color: var(--device-ink);
+  background: #EEF0F4;
+  color: var(--ink-secondary);
   border-radius: 0.7rem;
 }
 
