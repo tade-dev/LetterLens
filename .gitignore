@@ -25,3 +25,6 @@ web/app/.env.*.local
 
 # gstack working directory (browse reports, temp prompts)
 .gstack/
+
+# Firebase CLI deploy cache: local, changes on every deploy
+.firebase/
