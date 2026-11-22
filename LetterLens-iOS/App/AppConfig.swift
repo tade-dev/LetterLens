@@ -32,8 +32,22 @@ final class AppConfig {
     static let planModelKey = "plan_model"
     static let fallbackModelKey = "fallback_model"
 
+    /// The card schema this build can decode. `LetterCard` reads the closed `LetterType`
+    /// and `SenderKind` lists of version 2. A remote prompt written for another version
+    /// would be answered in a shape this build cannot read, so it is ignored.
+    static let supportedCardSchemaVersion = 2
+
+    /// Whether a published template's prompts may be used by this build.
+    /// Zero means the key is absent, which is the bundled default and always fine.
+    static func acceptsRemotePrompts(
+        remoteSchema: Int,
+        supported: Int = AppConfig.supportedCardSchemaVersion
+    ) -> Bool {
+        remoteSchema == 0 || remoteSchema == supported
+    }
+
     /// Used only when the bundled plist cannot be read. These match the template.
-    private static let fallbackSchemaVersion = 2
+    private static let fallbackSchemaVersion = supportedCardSchemaVersion
     private static let defaultCloudModel = "gemini-3.8-flash"
     private static let defaultFallbackModel = "gemini-3.5-flash-lite"
 
@@ -81,6 +95,20 @@ final class AppConfig {
     }
 
     private func apply(_ remoteConfig: RemoteConfig) {
+        // The prompts and the schema move together. A template published for a version
+        // this build cannot decode is skipped, and the bundled prompts stay. Letting a
+        // v1 prompt through to a v2 decoder returns types outside the closed list, which
+        // decode as `not_sure` on every letter.
+        let remoteSchema = remoteConfig.configValue(forKey: Self.cardSchemaVersionKey).numberValue.intValue
+        guard Self.acceptsRemotePrompts(remoteSchema: remoteSchema) else {
+            let supported = Self.supportedCardSchemaVersion
+            LetterLensLog.firebase.error(
+                "Remote Config publishes card_schema_version \(remoteSchema, privacy: .public) but this build decodes \(supported, privacy: .public). Keeping the bundled prompts. Model names are still applied."
+            )
+            applyModelNames(remoteConfig)
+            return
+        }
+
         let cardPrompt = remoteConfig.configValue(forKey: Self.cardPromptKey).stringValue
         if !cardPrompt.isEmpty {
             self.cardPrompt = cardPrompt
@@ -106,9 +134,27 @@ final class AppConfig {
             self.fallbackModel = fallbackModel
         }
 
-        let schemaVersion = remoteConfig.configValue(forKey: Self.cardSchemaVersionKey).numberValue.intValue
-        if schemaVersion > 0 {
-            cardSchemaVersion = schemaVersion
+        if remoteSchema > 0 {
+            cardSchemaVersion = remoteSchema
+        }
+    }
+
+    /// Model names carry no schema, so a template this build cannot decode can still
+    /// move inference onto a different model.
+    private func applyModelNames(_ remoteConfig: RemoteConfig) {
+        let cardModel = remoteConfig.configValue(forKey: Self.cardModelKey).stringValue
+        if !cardModel.isEmpty {
+            self.cardModel = cardModel
+        }
+
+        let planModel = remoteConfig.configValue(forKey: Self.planModelKey).stringValue
+        if !planModel.isEmpty {
+            self.planModel = planModel
+        }
+
+        let fallbackModel = remoteConfig.configValue(forKey: Self.fallbackModelKey).stringValue
+        if !fallbackModel.isEmpty {
+            self.fallbackModel = fallbackModel
         }
     }
 

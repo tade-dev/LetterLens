@@ -44,6 +44,8 @@ The debug token is not in the repo. To pin one locally:
 
 Bundled defaults live in `LetterLens-iOS/RemoteConfigDefaults.plist`. The keys match `firebase/remoteconfig.template.json`: `card_prompt`, `plan_prompt`, `card_schema_version` (2), `card_model` and `plan_model` (both `gemini-3.8-flash`), and `fallback_model` (`gemini-3.5-flash-lite`). The first transient cloud status (429, 500, 502, 503, 504) moves later attempts onto `fallback_model` when that name is set. An empty name skips the switch. A letter gets at most three cloud attempts; 400, 401, and 403 stop immediately. `AppConfig` loads those defaults, calls `fetchAndActivate()` on launch when Firebase is configured, and exposes the values as typed properties.
 
+A published `card_schema_version` this build cannot decode is refused: the bundled prompts stay and the mismatch is logged. `LetterCard` reads version 2's closed `type` and `sender_kind` lists, and a prompt written for another version is answered in a shape this build cannot read. The live project published version 1 against a version 2 decoder for a while, which returned `not_sure` on every letter. Model names carry no schema, so those are still applied.
+
 Live Remote Config is deployed separately. From the repo root, `firebase.json` publishes `firebase/remoteconfig.template.json`:
 
 ```bash
