@@ -1,6 +1,86 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
+    "“%@”" : {
+
+    },
+    "%@, %@. From the letter: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@. From the letter: %3$@."
+          }
+        }
+      }
+    },
+    "%@. From the letter: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. From the letter: %2$@."
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld letters, on this iPhone only" : {
+
+    },
+    "1 letter, on this iPhone only" : {
+
+    },
+    "Add reminder" : {
+
+    },
+    "Anything you want help with? (optional)" : {
+
+    },
+    "Apple Intelligence · works offline" : {
+
+    },
+    "Apple Intelligence isn't on this iPhone" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Check the letter for how much to pay." : {
+
+    },
+    "Choose a photo" : {
+
+    },
+    "Confusing letter? Get the short version." : {
+
+    },
+    "Copied" : {
+
+    },
+    "Copies the script" : {
+
+    },
+    "Copy" : {
+
+    },
+    "Deadline" : {
+
+    },
+    "Delete all" : {
+
+    },
+    "Delete all letters" : {
+
+    },
+    "Delete all letters?" : {
+
+    },
     "disclaimer.short" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11,6 +91,223 @@
           }
         }
       }
+    },
+    "Done" : {
+
+    },
+    "e.g. I can't afford it this month" : {
+
+    },
+    "Everything stays on this phone. “Plan next steps” is turned off." : {
+
+    },
+    "Finds the page edges for you. Add as many pages as the letter has." : {
+
+    },
+    "From the letter. Check it for the exact total." : {
+
+    },
+    "Get started" : {
+
+    },
+    "Here's exactly what we'll send" : {
+
+    },
+    "History is stored only on this iPhone" : {
+
+    },
+    "Import a PDF" : {
+
+    },
+    "Import a PDF or photo" : {
+
+    },
+    "Keep it private and close" : {
+
+    },
+    "LetterLens" : {
+
+    },
+    "Letters" : {
+
+    },
+    "Letters are read on this phone. If that isn't possible, or you ask for a plan, we'll show you what gets sent and ask first." : {
+
+    },
+    "Letters stored" : {
+
+    },
+    "Long letters take a little longer." : {
+
+    },
+    "Mark done" : {
+
+    },
+    "Mark not done" : {
+
+    },
+    "Never upload" : {
+
+    },
+    "Next steps" : {
+
+    },
+    "No amount found in this letter." : {
+
+    },
+    "No deadline found in this letter." : {
+
+    },
+    "No letter text is stored for this one, so nothing would be sent." : {
+
+    },
+    "No letters stored on this iPhone" : {
+
+    },
+    "No letters yet" : {
+
+    },
+    "Not done" : {
+
+    },
+    "Not now, keep it on my phone" : {
+
+    },
+    "Nothing was read and nothing was sent." : {
+
+    },
+    "On-device reading is ready" : {
+
+    },
+    "On-device reading isn't available" : {
+
+    },
+    "On-device reading needs Apple Intelligence. We can read it in the cloud with Google's Gemini instead." : {
+
+    },
+    "Only the text is sent, never the photo" : {
+
+    },
+    "Open Privacy settings" : {
+
+    },
+    "Open source · MIT" : {
+
+    },
+    "Opens the MIT licence on GitHub." : {
+
+    },
+    "Plan next steps" : {
+
+    },
+    "Planning…" : {
+
+    },
+    "Postcodes, phone numbers, emails and account numbers are removed first" : {
+
+    },
+    "Privacy" : {
+
+    },
+    "Privacy settings" : {
+
+    },
+    "Read it in the cloud" : {
+
+    },
+    "Reading on the phone needs Apple Intelligence, and this iPhone doesn't have it. You've turned on Never upload, so we won't send your letter anywhere." : {
+
+    },
+    "Reading your letter…" : {
+
+    },
+    "Report a suspicious letter" : {
+
+    },
+    "Scan" : {
+
+    },
+    "Scan a letter" : {
+
+    },
+    "Scan a letter and it will show up here." : {
+
+    },
+    "Scan with camera" : {
+
+    },
+    "Send and plan" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Shows the signs to check" : {
+
+    },
+    "Shows this letter" : {
+
+    },
+    "Snap a letter from HMRC, the council, your bank or school. LetterLens tells you what it is and what to do." : {
+
+    },
+    "Step %lld. %@. %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld. %2$@. %3$@"
+          }
+        }
+      }
+    },
+    "Stop before you pay or click" : {
+
+    },
+    "The card will say “Read in the cloud”" : {
+
+    },
+    "This iPhone can't read letters on its own" : {
+
+    },
+    "This iPhone can't read letters privately" : {
+
+    },
+    "This letter has signs of a scam" : {
+
+    },
+    "This removes every letter stored on this iPhone. Nothing is sent." : {
+
+    },
+    "To use the cloud, turn off Never upload in Privacy. We'll still ask before anything is sent." : {
+
+    },
+    "We can’t be sure. Check with the sender using contact details you find yourself." : {
+
+    },
+    "We never say a letter is safe. Only the sender can confirm." : {
+
+    },
+    "We only show a date when the letter states one. If you expected a date, check the letter itself." : {
+
+    },
+    "What gets sent" : {
+
+    },
+    "You can also share a PDF or photo to LetterLens from Mail, Files or Photos using the share sheet." : {
+
+    },
+    "Your details were added back on this iPhone" : {
+
+    },
+    "Your iPhone reads the letter with Apple's on-device model. If that isn't available, or you ask for a plan, Google Gemini is used through Firebase, only after you agree and with your details removed." : {
+
+    },
+    "Your iPhone removed your personal details. Gemini only sees this." : {
+
+    },
+    "Your next steps" : {
+
     }
   },
   "version" : "1.0"
