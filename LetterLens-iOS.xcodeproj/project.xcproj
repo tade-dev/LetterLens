@@ -86,7 +86,8 @@
           "script": [
             "plist=\"${SRCROOT}/LetterLens-iOS/GoogleService-Info.plist\"",
             "if [ ! -f \"${plist}\" ]; then",
-            "  echo \"warning: GoogleService-Info.plist is missing, so Firebase is not configured and no cloud read will work. Put it in LetterLens-iOS/ (it is gitignored); see README. On-device reading still works.\"",
+            "  echo \"error: GoogleService-Info.plist is missing, so Firebase is not configured and the app cannot read a letter at all. Every route, on-device included, needs a configured FirebaseApp. Put the file in LetterLens-iOS/ (it is gitignored); see README.\"",
+            "  exit 1",
             "fi",
           ],
         },

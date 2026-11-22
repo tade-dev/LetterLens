@@ -19,11 +19,14 @@ enum LetterLensLog {
 
 /// Configures Firebase when `GoogleService-Info.plist` is in the app bundle.
 ///
-/// The plist is gitignored. A missing file must not crash CI or a fresh checkout:
-/// configuration is skipped and an error is logged, and the Check GoogleService-Info.plist
-/// script phase warns rather than failing the build, so a clone of this public repo still
-/// compiles and still reads on device. The synchronized `LetterLens-iOS` folder picks the
-/// file up as a resource once a developer drops it in that directory.
+/// The plist is gitignored, and the Check GoogleService-Info.plist script phase fails the
+/// build when it is absent. Nothing works without it: every route, on-device included,
+/// goes through a `FirebaseAI` instance that needs a configured `FirebaseApp`, so a build
+/// that merely warned produced an app that died at the first read instead.
+///
+/// This guard stays for the bundle that reaches here without one anyway: configuration is
+/// skipped and an error is logged rather than crashing. The synchronized `LetterLens-iOS`
+/// folder picks the file up as a resource once a developer drops it in that directory.
 enum FirebaseBootstrap {
     #if DEBUG
     private static let appCheckFactory = AppCheckDebugProviderFactory()
