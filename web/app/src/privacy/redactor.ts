@@ -79,9 +79,15 @@ export function reinsert(map: RedactionMap, text: string): string {
  * A redaction token is `[LABEL_N]`. A fragment counts as well: an uppercase
  * label with a lone `[` or `]`, including a mismatched closer such as
  * `S[AMOUNT)`, `[AMOUNT`, and `AMOUNT_1]`.
+ *
+ * A token is one unbroken word, so a bracketed phrase with a space in it is
+ * text the letter itself contains. `[ACCOUNT` used to match inside
+ * `reference [ACCOUNT REF]`, and `REF]` inside the same phrase, which threw
+ * away a deadline the model had read correctly: the card then said
+ * "No deadline found" while its own action quoted the date.
  */
 const LEFTOVER_PLACEHOLDER =
-  /\[[A-Za-z]{2,}_\d+\]|\[[A-Z]{2,}(?:_\d+)?|[A-Za-z]{2,}_\d+\]|[A-Z]{2,}\]/;
+  /\[[A-Za-z]{2,}_\d+\]?|\[[A-Za-z]{2,}(?![A-Za-z0-9 ])|[A-Za-z]{2,}_\d+\]|(?<![A-Za-z ])[A-Z]{2,}\]/;
 
 export function hasLeftoverPlaceholder(text: string): boolean {
   return LEFTOVER_PLACEHOLDER.test(text);

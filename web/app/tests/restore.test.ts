@@ -34,6 +34,19 @@ test("full tokens and broken placeholders are detected", () => {
   assert.equal(hasLeftoverPlaceholder("Pay £42.50 by 1 December 2026."), false);
 });
 
+// A token is one unbroken word. A bracketed phrase with a space is the
+// letter's own text, and matching it threw away correct answers: the card
+// said "No deadline found" while its action quoted the date.
+test("a bracketed phrase in the letter is not a leftover token", () => {
+  for (const sample of [
+    "Online at the council site, using reference [ACCOUNT REF]",
+    "Yours sincerely, [OFFICER NAME]",
+    "bailiffs will be sent to [ADDRESS LINE 1] on the same day",
+  ]) {
+    assert.equal(hasLeftoverPlaceholder(sample), false, sample);
+  }
+});
+
 test("a known token is restored before the card is shown", () => {
   const result = restoreCard(
     card({
