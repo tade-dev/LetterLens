@@ -61,6 +61,9 @@ struct LetterCardScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Without this the pill and the hero slid under a bare navigation bar:
+        // the back button sat on top of the red card and the pill on the clock.
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .background(LLColor.ground.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             pinnedActions
