@@ -82,6 +82,15 @@ export function displayTitle(card: LetterCard): string {
   return `${SENDER_LABELS[card.senderKind]} · ${TYPE_LABELS[card.type]}`;
 }
 
+export function senderLabel(card: LetterCard): string {
+  return SENDER_LABELS[card.senderKind];
+}
+
+/** A quoted scam sign switches the card to the warning layout, as on iOS. */
+export function opensScamWarning(card: LetterCard): boolean {
+  return card.scamSigns.length > 0;
+}
+
 /** Blank, "null", and "none" are the same as JSON null. */
 export function nullish(value: unknown): string | null {
   if (typeof value !== "string") return null;

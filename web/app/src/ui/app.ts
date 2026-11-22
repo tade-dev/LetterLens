@@ -1,7 +1,7 @@
 import { fillPrompt } from "../card/defaults.js";
 import { showsAmount, extractAmountFigure } from "../card/amount.js";
 import { formatIsoDate } from "../card/dates.js";
-import { displayTitle, type LetterCard } from "../card/schema.js";
+import { displayTitle, opensScamWarning, senderLabel, type LetterCard } from "../card/schema.js";
 import { resolveCardSettings, type CardSettings } from "../card/settings.js";
 import { detectDevice, deviceMessage, type DeviceStatus } from "../chrome/device.js";
 import {
@@ -351,13 +351,33 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
   title.textContent = displayTitle(card);
   host.append(badge, title);
 
-  if (card.noActionNeeded) {
-    const note = el("p", { className: "note" });
-    note.textContent = "This letter does not ask you to do anything.";
-    host.append(note);
-  }
+  // A letter with quoted scam signs never shows its own instruction as the thing
+  // to do: that would tell the reader to pay the fee or follow the link. iOS
+  // pushes ScamWarningScreen for exactly this reason and never renders the action.
+  const isScam = opensScamWarning(card);
 
-  host.append(section("What you need to do", card.action || "The letter does not say."));
+  if (isScam) {
+    const warning = el("p", { className: "alert" });
+    warning.textContent = "This letter has signs of a scam";
+    const caveat = el("p", { className: "note" });
+    caveat.textContent =
+      "We can't be sure. Check with the sender using contact details you find yourself.";
+    host.append(warning, caveat);
+    host.append(
+      section(
+        "Stop before you pay or click",
+        `Do not use the links, phone numbers or payment details in this letter. Look up ${senderLabel(card)} yourself and check with them.`,
+      ),
+    );
+    host.append(section("What it claims to be", card.action || "The letter does not say."));
+  } else {
+    if (card.noActionNeeded) {
+      const note = el("p", { className: "note" });
+      note.textContent = "This letter does not ask you to do anything.";
+      host.append(note);
+    }
+    host.append(section("What you need to do", card.action || "The letter does not say."));
+  }
 
   const amount = amountRow(card);
   if (amount) host.append(amount);
@@ -386,6 +406,11 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
 
   const signs = el("section");
   signs.append(heading("Signs to check"));
+  if (isScam) {
+    const how = el("p", { className: "note" });
+    how.textContent = `How to check with ${senderLabel(card)}: find their number on their own website, not in this letter. We never say a letter is safe. Only the sender can confirm.`;
+    signs.append(how);
+  }
   if (card.scamSigns.length === 0) {
     const none = el("p");
     none.textContent = "No signs to check were quoted from this letter.";
