@@ -8,9 +8,6 @@
 //  `-LLHarness` stays on the app entry.
 
 import SwiftUI
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
 
 struct RootView: View {
     @AppStorage("ll.hasSeenWelcome") private var hasSeenWelcome = false
@@ -50,19 +47,18 @@ struct RootView: View {
     }
 }
 
+/// What the screens are told about on-device reading.
+///
+/// This asks `ModelRouter`, which is what the pipeline will actually use, rather
+/// than reading `SystemLanguageModel` a second time. Asking separately meant the
+/// two could disagree: on the Simulator the model reports itself available and
+/// then fails, so the UI skipped the cloud consent sheet while `CardService`
+/// refused the read. The reader got a dead end instead of the offer.
+///
+/// `neverUpload` and `cloudConsent` do not affect availability, so the values
+/// passed here are irrelevant to the answer.
 enum OnDeviceReadingStatusReader {
     static var current: OnDeviceReadingAvailability {
-        #if canImport(FoundationModels)
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            return .available
-        case .unavailable:
-            return .unavailable
-        @unknown default:
-            return .unavailable
-        }
-        #else
-        return .unavailable
-        #endif
+        ModelRouter(neverUpload: false, cloudConsent: false).isOnDeviceUsable ? .available : .unavailable
     }
 }
