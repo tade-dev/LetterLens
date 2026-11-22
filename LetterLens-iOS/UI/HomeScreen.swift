@@ -32,6 +32,10 @@ struct HomeScreen: View {
     @State private var showLetter = false
     @State private var appeared = false
     @State private var doneTaps = 0
+    /// How far the info slab hides behind the scan button. Scales with the
+    /// caption it carries, so the visible band holds its proportions at every
+    /// Dynamic Type size instead of swallowing the first line.
+    @ScaledMetric(relativeTo: .caption) private var infoTuck: CGFloat = ScanStack.tuck
 
     var body: some View {
         List {
@@ -409,25 +413,46 @@ struct HomeScreen: View {
     }
 
     private var scanBar: some View {
-        VStack(spacing: LLSpace.m) {
+        VStack(spacing: 0) {
             scanControls
-            Text("History is stored only on this iPhone")
-                .font(LLFont.caption)
-                .foregroundStyle(LLColor.inkSecondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity)
-            Text(LetterCopy.disclaimerShort)
-                .font(LLFont.caption)
-                .foregroundStyle(LLColor.inkSecondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity)
+                .zIndex(1)
+            infoSlab
+                .padding(.horizontal, ScanStack.backInset)
+                .padding(.top, -infoTuck)
+                .zIndex(0)
         }
         .padding(.horizontal, LLSpace.screen)
         .padding(.top, LLSpace.m)
         .padding(.bottom, LLSpace.s)
         .background(LLColor.ground)
+    }
+
+    /// The two standing notes, in one card tucked behind the scan button so the
+    /// pair reads as a stack rather than a button with loose text under it. The
+    /// button keeps its own capsule; this slab slides up behind it, inset on
+    /// both sides, and only its lower band shows.
+    ///
+    /// The top padding carries `infoTuck` so the hidden band costs the copy no
+    /// room: the text sits below the button's edge at every Dynamic Type size.
+    private var infoSlab: some View {
+        VStack(spacing: LLSpace.xxs) {
+            Text("History is stored only on this iPhone")
+            Text(LetterCopy.disclaimerShort)
+        }
+        .font(LLFont.caption)
+        .foregroundStyle(LLColor.inkSecondary)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, LLSpace.card)
+        .padding(.top, infoTuck + LLSpace.s)
+        .padding(.bottom, LLSpace.m)
+        .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: LLRadius.card, style: .continuous)
+                .stroke(LLColor.line)
+        )
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -574,6 +599,15 @@ private struct HomeLetterZoomSource: ViewModifier {
             content
         }
     }
+}
+
+private enum ScanStack {
+    /// How much of the slab the button covers. One card radius, so the slab's
+    /// top corners vanish behind the capsule and the overlap reads as depth.
+    static let tuck: CGFloat = LLRadius.card
+    /// The back card is narrower on both sides. The inset is what makes it read
+    /// as behind the button rather than merely below it.
+    static let backInset: CGFloat = LLSpace.m
 }
 
 private struct HomeImportButton: View {
