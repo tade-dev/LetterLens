@@ -78,9 +78,11 @@ export function mount(root: HTMLElement): void {
     shell.alert.textContent = message;
   };
 
-  const setProgress = (message: string, fraction?: number) => {
+  const setProgress = (message: string, fraction?: number, title = "Reading your letter…") => {
     shell.progress.hidden = false;
+    shell.progressTitle.textContent = title;
     shell.progressText.textContent = message;
+    shell.bar.hidden = fraction === undefined;
     if (fraction === undefined) {
       shell.bar.removeAttribute("value");
     } else {
@@ -90,6 +92,7 @@ export function mount(root: HTMLElement): void {
   };
 
   const clearProgress = () => {
+    shell.bar.hidden = true;
     shell.progress.hidden = true;
     shell.progressText.textContent = "";
     shell.bar.removeAttribute("value");
@@ -191,12 +194,20 @@ export function mount(root: HTMLElement): void {
     if (!firebase || busy) return;
     clearAlert();
     setBusy(true);
-    setProgress("Downloading the on-device model. This can take several minutes.", 0);
+    setProgress(
+      "Downloading the on-device model. This can take several minutes.",
+      0,
+      "Getting ready…",
+    );
     try {
       const model = onDeviceModel(firebase, settings.cardModel);
       await downloadDeviceModel(model, (fraction) => {
         const value = fraction <= 1 ? fraction : fraction / 100;
-        setProgress(`Downloading the on-device model. ${formatPercent(value)} complete.`, value);
+        setProgress(
+          `Downloading the on-device model. ${formatPercent(value)} complete.`,
+          value,
+          "Getting ready…",
+        );
       });
       device = await detectDevice();
       clearProgress();
@@ -238,7 +249,7 @@ export function mount(root: HTMLElement): void {
         sync();
         return;
       }
-      setProgress("Reading it on this device. This can take a minute.");
+      setProgress("Nothing has left your computer.", undefined, "Reading on this device…");
       const result = await requestCard({
         generator: asGenerator(model),
         prompt,
@@ -285,7 +296,7 @@ export function mount(root: HTMLElement): void {
     }
     setBusy(true);
     clearCard();
-    setProgress("Reading the redacted letter in the cloud.");
+    setProgress("Only the redacted text was sent.", undefined, "Reading in the cloud…");
     try {
       let modelUsed = settings.cardModel;
       let result = await requestCard({
@@ -304,7 +315,11 @@ export function mount(root: HTMLElement): void {
         fallback !== modelUsed
       ) {
         modelUsed = fallback;
-        setProgress("The first cloud model was busy. Trying the fallback model with the same redacted text.");
+        setProgress(
+          "The first model was busy. Trying the fallback with the same redacted text.",
+          undefined,
+          "Reading in the cloud…",
+        );
         result = await requestCard({
           generator: asGenerator(cloudModel(firebase, modelUsed)),
           prompt,
@@ -579,6 +594,7 @@ interface Shell {
   progress: HTMLElement;
   bar: HTMLProgressElement;
   progressText: HTMLElement;
+  progressTitle: HTMLElement;
   alert: HTMLElement;
   card: HTMLElement;
   promptSource: HTMLElement;
@@ -673,12 +689,22 @@ function buildShell(): Shell {
   actions.append(download, read, cloud);
   form.append(letterLabel, letter, help, fileLabel, fileStatus, actions);
 
+  // The reading state borrows the scan line from iOS's screen 04. It carries no
+  // claim about how far along the read is: the browser read is one await with no
+  // steps to report, so a ticking checklist here would be invented progress.
+  // The determinate bar appears only for the model download, which has a real
+  // fraction to show.
   const progress = el("div", { className: "progress", hidden: "true" });
+  const sweep = el("div", { className: "sweep", "aria-hidden": "true" });
+  sweep.append(el("span", { className: "sweep-line" }));
+  const progressTitle = el("p", { className: "progress-title" });
+  progressTitle.textContent = "Reading your letter…";
+  const progressText = el("p", { role: "status" });
   const bar = document.createElement("progress");
   bar.max = 1;
-  bar.setAttribute("aria-label", "Working");
-  const progressText = el("p", { role: "status" });
-  progress.append(bar, progressText);
+  bar.hidden = true;
+  bar.setAttribute("aria-label", "Download progress");
+  progress.append(sweep, progressTitle, progressText, bar);
 
   const alert = el("p", { className: "alert", role: "alert", hidden: "true" });
   const card = el("article", { className: "card", hidden: "true", "aria-live": "polite" });
@@ -738,6 +764,7 @@ function buildShell(): Shell {
     progress,
     bar,
     progressText,
+    progressTitle,
     alert,
     card,
     promptSource,

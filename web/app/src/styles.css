@@ -375,6 +375,59 @@ blockquote {
 
 .card section + section { margin-top: 1.1rem; }
 
+/* Screen 04's scan line, adapted. It says "working", not "this far along":
+   the browser read is one await with no steps, so nothing here is a claim
+   about progress. The determinate bar is only shown for the model download,
+   which has a real fraction. */
+.progress-title {
+  margin: 0.75rem 0 0.2rem;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.sweep {
+  position: relative;
+  height: 4.5rem;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--line) 0 1px,
+      transparent 1px 0.75rem
+    );
+}
+
+.sweep-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--device), transparent);
+  box-shadow: 0 0 10px rgba(14, 122, 90, 0.45);
+  animation: ll-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes ll-sweep {
+  0% { top: 0; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { top: calc(100% - 2px); opacity: 0; }
+}
+
+.progress progress { width: 100%; margin-top: 0.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* No travelling line. A still rule keeps the block from looking broken. */
+  .sweep-line {
+    animation: none;
+    top: 50%;
+    opacity: 0.6;
+  }
+}
+
 /* The card used to appear fully formed. Its blocks now rise in order, which
    reads as the answer arriving rather than the page redrawing. --i is set per
    child in renderCard. */
