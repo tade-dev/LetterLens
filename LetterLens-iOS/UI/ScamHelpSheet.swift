@@ -30,9 +30,9 @@ struct ScamHelpSheet: View {
                     onDone()
                 }
             }
-            .padding(.horizontal, LLSpace.screen)
-            .padding(.top, LLSpace.m)
-            .padding(.bottom, LLSpace.l)
+            .padding(.horizontal, LLSpace.l)
+            .padding(.top, LLSpace.l)
+            .padding(.bottom, LLSpace.l + LLSpace.s)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -78,7 +78,7 @@ struct ScamHelpSheet: View {
                 .accessibilityLabel("Step \(index + 1). \(step)")
             }
         }
-        .padding(LLSpace.card)
+        .padding(LLSpace.blockLoose)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(LLColor.surface, in: RoundedRectangle(cornerRadius: LLRadius.card, style: .continuous))
     }
