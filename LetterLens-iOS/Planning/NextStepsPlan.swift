@@ -4,9 +4,10 @@
 //
 //  Screen 09's plan. It is not part of the card schema and it is not stored.
 //
-//  `LocalSampleNextStepsPlanner` stays on this iPhone. `ModelRouter` knows a `.plan`
-//  task, and Remote Config has `plan_prompt` / `plan_model`, but no type sends a
-//  plan request. This sample does not read those values and does not open a session.
+//  `CloudNextStepsPlanner` sends the redacted letter to `plan_model`, after the
+//  consent sheet. `LocalSampleNextStepsPlanner` is the offline stand-in, used when
+//  Firebase is not configured and in previews. Only the cloud planner sets
+//  `madeInCloud`, so the badge never claims a cloud plan that did not happen.
 
 import Foundation
 
@@ -19,6 +20,8 @@ struct NextStepsPlan: Equatable {
     var steps: [Step]
     /// May still contain redaction tokens. The screen puts the originals back locally.
     var script: String
+    /// Free, official or charity sources. `PROMPTS.md` asks the model for these.
+    var whereToGetHelp: [String] = []
     /// True only after a planner that actually called the cloud. The local sample stays false.
     var madeInCloud: Bool = false
 }

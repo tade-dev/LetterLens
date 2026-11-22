@@ -74,6 +74,12 @@ OCR stays on device (`RecognizeDocumentsRequest`, falling back to `VNRecognizeTe
 
 The badge is **Read on this iPhone** or **Read in the cloud**, from `response.rawResponse.modelVersion`. On-device is reported as `apple-foundation-models-system-language-model`.
 
+## Next steps
+
+**Plan next steps** is always a cloud call and always behind the consent sheet, so Never upload blocks it. `PlanService` sends only the redacted letter and a card re-encoded from it, using `plan_prompt` and `plan_model` from Remote Config, with the same 429/503 retry and `fallback_model` switch the card uses. Personal details are put back on this iPhone, in the screen.
+
+The reply gives the steps, the "what to say" script, and the free or charity sources shown under **Where to get help**. If the cloud call fails, the screen falls back to the offline sample plan and the badge does not say **Planned in the cloud** — that pill appears only for a plan the cloud actually made.
+
 ## Hosting the web app
 
 `firebase.json` deploys `web/app/dist` to Firebase Hosting. Build first, then deploy:

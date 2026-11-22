@@ -15,13 +15,16 @@ struct WhatGetsSentScreen: View {
     var ocrText: String
     var path: ReadingPath = .device
     var preferences: PrivacySettingsModel
-    var planner: any NextStepsPlanner = LocalSampleNextStepsPlanner()
+    /// Previews and tests inject a planner. The app leaves this nil and the real
+    /// cloud planner is built from Remote Config when Send and plan is pressed.
+    var planner: (any NextStepsPlanner)?
     var availability: OnDeviceReadingAvailability = .available
 
     @Query(sort: \LetterRecord.createdAt, order: .reverse) private var records: [LetterRecord]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(AppConfig.self) private var config
 
     @State private var note = ""
     @State private var isPlanning = false
@@ -243,7 +246,14 @@ struct WhatGetsSentScreen: View {
 
         isPlanning = true
         defer { isPlanning = false }
-        let plan = await planner.plan(
+        // Pressing Send and plan is the consent, so the router is told the cloud is allowed.
+        let active = planner ?? PlanService(
+            promptTemplate: config.planPrompt,
+            planModel: config.planModel,
+            fallbackModel: config.fallbackModel,
+            router: ModelRouter(neverUpload: preferences.neverUpload, cloudConsent: true)
+        )
+        let plan = await active.plan(
             redactedText: redaction.text,
             card: card,
             note: note
