@@ -107,13 +107,17 @@ The app target sets `ENABLE_USER_SCRIPT_SANDBOXING = NO`, which the project othe
 
 ## App icon
 
-`AppIcon.appiconset` holds the light, dark and tinted 1024s. They are generated, not hand-drawn: `scripts/make-app-icon.swift` redraws the `LetterLensLogo` geometry at 1024 so the icon and the in-app mark cannot drift apart.
+`AppIcon.appiconset` holds the light, dark and tinted 1024s. All three are built from one piece of artwork, `design/app-icon-1024.png`:
 
 ```bash
-swift scripts/make-app-icon.swift LetterLens-iOS/Assets.xcassets/AppIcon.appiconset
+swift scripts/make-app-icon.swift design/app-icon-1024.png LetterLens-iOS/Assets.xcassets/AppIcon.appiconset
 ```
 
-The icon drops the logo's own rounded tile, because iOS masks the corners itself. The files carry no alpha channel: App Store Connect rejects an icon that has one.
+Light and dark are the artwork itself: it carries its own dark ground, so it needs no separate dark cut. Tinted is the same artwork in greyscale, which is what iOS wants — it applies the wallpaper tint to the luminance. None of the three carries an alpha channel, because App Store Connect rejects an icon that has one.
+
+The artwork is full bleed, with no rounded tile of its own, because iOS masks the corners itself.
+
+Note that the icon and `LetterLensLogo`, the mark drawn inside the app, are now separate drawings. They can drift.
 
 ## Swapping the Firebase project
 
