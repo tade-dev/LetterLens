@@ -4,18 +4,21 @@
 //
 //  Screen 06. Shown when the v2 card has at least one scam sign.
 //  The hero copy is fixed. Signs use `scam_signs` (`sign`, and `quote` when present).
-//  The check and report buttons stay on this iPhone. They do not send the letter.
+//  The check and report buttons open ScamHelpSheet. Both stay on this iPhone
+//  and neither sends the letter. A caller can override either one.
 
 import SwiftUI
 
 struct ScamWarningScreen: View {
     var card: LetterCard
     var path: ReadingPath
-    var onCheckWithSender: () -> Void = {}
-    var onReport: () -> Void = {}
+    /// Nil keeps the built-in sheet. A caller passes a closure only to take over.
+    var onCheckWithSender: (() -> Void)?
+    var onReport: (() -> Void)?
 
     @State private var appeared = false
     @State private var warningShown = false
+    @State private var help: ScamHelpContent?
 
     var body: some View {
         ScrollView {
@@ -41,6 +44,9 @@ struct ScamWarningScreen: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.warning, trigger: warningShown)
+        .sheet(item: $help) { content in
+            ScamHelpSheet(content: content) { help = nil }
+        }
         .preferredColorScheme(.light)
         .onAppear {
             appeared = true
@@ -58,8 +64,9 @@ struct ScamWarningScreen: View {
         signs.count == 1 ? "1 sign to check" : "\(signs.count) signs to check"
     }
 
+    /// "How to check with the council", not "How to check with Council tax".
     private var checkTitle: LocalizedStringKey {
-        LocalizedStringKey(stringLiteral: "How to check with \(card.senderKind.title)")
+        LocalizedStringKey(stringLiteral: ScamHelp.checkTitle(sender: card.senderKind))
     }
 
     private var hero: some View {
@@ -136,10 +143,18 @@ struct ScamWarningScreen: View {
     private var bottom: some View {
         VStack(spacing: LLSpace.m) {
             ClearInkGlassButton(checkTitle, kind: .prominent(LLColor.ink)) {
-                onCheckWithSender()
+                if let onCheckWithSender {
+                    onCheckWithSender()
+                } else {
+                    help = ScamHelp.check(sender: card.senderKind)
+                }
             }
             ClearInkGlassButton("Report a suspicious letter", kind: .regular) {
-                onReport()
+                if let onReport {
+                    onReport()
+                } else {
+                    help = ScamHelp.report(sender: card.senderKind)
+                }
             }
             Text("We never say a letter is safe. Only the sender can confirm.")
                 .font(LLFont.caption)
