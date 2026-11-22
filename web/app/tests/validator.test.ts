@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseModelCard, stripOneFence } from "../src/card/parse.js";
-import type { LetterCard } from "../src/card/schema.js";
+import { opensScamWarning, type LetterCard } from "../src/card/schema.js";
 import { validateCard } from "../src/card/validator.js";
 
 const LETTER = "Pay by 3 March 2027. The balance is £42.50. A further notice may follow.";
@@ -98,4 +98,21 @@ test("a verbatim amount quote is kept", () => {
   const validated = validateCard(sampleCard(), LETTER);
   assert.equal(validated.amountQuote, "£42.50");
   assert.equal(validated.deadline, "2027-03-03");
+});
+
+// A scam letter must never have its own instruction shown as the thing to do.
+// The live site rendered "What you need to do: Claim your refund now at
+// www.hmrc-refunds-secure.example/claim" for a fake HMRC refund.
+test("a quoted scam sign switches the card to the warning layout", () => {
+  const scam: LetterCard = {
+    ...sampleCard(),
+    action: "Claim your refund now at www.hmrc-refunds-secure.example/claim.",
+    scamSigns: [
+      { sign: "Payment link not on the official domain", quote: "www.hmrc-refunds-secure.example/claim" },
+    ],
+  };
+  assert.equal(opensScamWarning(scam), true);
+
+  const ordinary: LetterCard = { ...sampleCard(), scamSigns: [] };
+  assert.equal(opensScamWarning(ordinary), false);
 });
