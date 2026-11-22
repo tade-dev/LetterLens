@@ -22,3 +22,6 @@ web/app/dist/
 web/app/dist-tests/
 web/app/.env
 web/app/.env.*.local
+
+# gstack working directory (browse reports, temp prompts)
+.gstack/

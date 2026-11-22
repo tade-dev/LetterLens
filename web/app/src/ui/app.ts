@@ -45,6 +45,15 @@ export function mount(root: HTMLElement): void {
     const onDeviceReady = device.browser === "chrome" && device.promptApi && device.availability === "available";
     const needsDownload = device.availability === "downloadable" || device.availability === "downloading";
     shell.readiness.textContent = deviceMessage(device);
+    // Green is only ever "where it was read", so the badge claims Chrome
+    // on-device reading only when that is actually available.
+    if (onDeviceReady) {
+      shell.chromeBadge.textContent = "Reading in Chrome on this computer";
+      shell.chromeBadge.classList.remove("chrome-badge-off");
+    } else {
+      shell.chromeBadge.textContent = "On-device reading is not available here";
+      shell.chromeBadge.classList.add("chrome-badge-off");
+    }
     shell.download.hidden = !needsDownload || !firebase;
     shell.download.disabled = busy;
     shell.read.disabled = busy || !firebase || !onDeviceReady || !hasLetter;
@@ -497,6 +506,7 @@ interface Shell {
   file: HTMLInputElement;
   fileStatus: HTMLElement;
   readiness: HTMLElement;
+  chromeBadge: HTMLElement;
   download: HTMLButtonElement;
   read: HTMLButtonElement;
   cloud: HTMLButtonElement;
@@ -517,15 +527,24 @@ function buildShell(): Shell {
   const skip = el("a", { className: "skip", href: "#letter" });
   skip.textContent = "Skip to the letter";
 
+  // Header is screen 11: logo lockup left, "where it was read" badge right.
   const header = el("header", { className: "mast" });
+  const lockup = el("div", { className: "lockup" });
+  lockup.insertAdjacentHTML("afterbegin", LOGO_SVG);
   const mark = el("p", { className: "mark" });
   mark.textContent = "LetterLens";
+  lockup.append(mark);
+  const chromeBadge = el("p", { className: "chrome-badge" });
+  chromeBadge.textContent = "Checking this browser";
+  header.append(lockup, chromeBadge);
+
+  const intro = el("div", { className: "intro" });
   const title = el("h1");
-  title.textContent = "A plain-English card for an official letter";
+  title.textContent = "Drop in a letter. Get the short version.";
   const lede = el("p", { className: "lede" });
   lede.textContent =
-    "Paste a council, HMRC, bank, NHS, landlord, or utility letter. LetterLens says who sent it, what kind of letter it is, what you need to do, any deadline quoted from the letter, and signs worth checking.";
-  header.append(mark, title, lede);
+    "Gemini Nano reads it inside your browser. Nothing is uploaded unless you ask.";
+  intro.append(title, lede);
 
   const main = el("main");
   const readiness = el("p", { className: "readiness", role: "status" });
@@ -588,7 +607,14 @@ function buildShell(): Shell {
   const alert = el("p", { className: "alert", role: "alert", hidden: "true" });
   const card = el("article", { className: "card", hidden: "true", "aria-live": "polite" });
   const appCheck = el("p", { className: "help" });
-  main.append(readiness, how, form, progress, alert, card, appCheck);
+  // Intake on the left, the card on the right, as in design/html/11-Web.html.
+  const columns = el("div", { className: "columns" });
+  const intake = el("div", { className: "intake" });
+  intake.append(intro, readiness, form, progress, alert);
+  const output = el("div", { className: "output" });
+  output.append(card, how, appCheck);
+  columns.append(intake, output);
+  main.append(columns);
 
   const footer = el("footer");
   const promptSource = el("p");
@@ -628,6 +654,7 @@ function buildShell(): Shell {
     file,
     fileStatus,
     readiness,
+    chromeBadge,
     download,
     read,
     cloud,
@@ -663,3 +690,7 @@ function el(tag: string, attrs: Record<string, string> = {}, text?: string): HTM
   if (text !== undefined) node.textContent = text;
   return node;
 }
+
+/** Brand mark from design/logo.svg: ink tile, white envelope, green lens. */
+const LOGO_SVG = `<svg width="36" height="36" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect width="48" height="48" rx="12" fill="#14213D"/><rect x="9" y="14" width="24" height="18" rx="3" fill="none" stroke="#FFFFFF" stroke-width="2.4"/><path d="M9.5 15.5 21 24l11.5-8.5" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round"/><circle cx="32" cy="30" r="6.5" fill="#14213D" stroke="#3FC79A" stroke-width="2.6"/><path d="M36.8 34.8 40 38" stroke="#3FC79A" stroke-width="2.8" stroke-linecap="round"/></svg>`;
+
