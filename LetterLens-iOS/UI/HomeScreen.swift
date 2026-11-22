@@ -32,9 +32,9 @@ struct HomeScreen: View {
     @State private var showLetter = false
     @State private var appeared = false
     @State private var doneTaps = 0
-    /// How far the info slab hides behind the scan button. Scales with the
-    /// caption it carries, so the visible band holds its proportions at every
-    /// Dynamic Type size instead of swallowing the first line.
+    /// How far the scan button overlaps the slab behind it. Scales with the
+    /// caption the slab carries, so the hidden band holds its proportions at
+    /// every Dynamic Type size instead of swallowing the last line.
     @ScaledMetric(relativeTo: .caption) private var infoTuck: CGFloat = ScanStack.tuck
 
     var body: some View {
@@ -414,12 +414,12 @@ struct HomeScreen: View {
 
     private var scanBar: some View {
         VStack(spacing: 0) {
-            scanControls
-                .zIndex(1)
             infoSlab
                 .padding(.horizontal, ScanStack.backInset)
-                .padding(.top, -infoTuck)
                 .zIndex(0)
+            scanControls
+                .padding(.top, -infoTuck)
+                .zIndex(1)
         }
         .padding(.horizontal, LLSpace.screen)
         .padding(.top, LLSpace.m)
@@ -427,13 +427,14 @@ struct HomeScreen: View {
         .background(LLColor.ground)
     }
 
-    /// The two standing notes, in one card tucked behind the scan button so the
-    /// pair reads as a stack rather than a button with loose text under it. The
-    /// button keeps its own capsule; this slab slides up behind it, inset on
-    /// both sides, and only its lower band shows.
+    /// The two standing notes, in one card that the scan button sits on top of,
+    /// so the pair reads as a stack rather than a button with loose text under
+    /// it. The button keeps its own capsule and overlaps this slab's lower
+    /// edge; the slab is inset on both sides, which is what makes it read as
+    /// behind rather than merely above.
     ///
-    /// The top padding carries `infoTuck` so the hidden band costs the copy no
-    /// room: the text sits below the button's edge at every Dynamic Type size.
+    /// The bottom padding carries `infoTuck` so the covered band costs the copy
+    /// no room: the text clears the button's edge at every Dynamic Type size.
     private var infoSlab: some View {
         VStack(spacing: LLSpace.xxs) {
             Text("History is stored only on this iPhone")
@@ -445,8 +446,8 @@ struct HomeScreen: View {
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, LLSpace.card)
-        .padding(.top, infoTuck + LLSpace.s)
-        .padding(.bottom, LLSpace.m)
+        .padding(.top, LLSpace.m)
+        .padding(.bottom, infoTuck + LLSpace.s)
         .background(LLColor.surface, in: .rect(cornerRadius: LLRadius.card))
         .overlay(
             RoundedRectangle(cornerRadius: LLRadius.card, style: .continuous)
@@ -603,7 +604,7 @@ private struct HomeLetterZoomSource: ViewModifier {
 
 private enum ScanStack {
     /// How much of the slab the button covers. One card radius, so the slab's
-    /// top corners vanish behind the capsule and the overlap reads as depth.
+    /// bottom corners vanish behind the capsule and the overlap reads as depth.
     static let tuck: CGFloat = LLRadius.card
     /// The back card is narrower on both sides. The inset is what makes it read
     /// as behind the button rather than merely below it.
