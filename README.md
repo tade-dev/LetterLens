@@ -113,6 +113,20 @@ swift scripts/make-app-icon.swift LetterLens-iOS/Assets.xcassets/AppIcon.appicon
 
 The icon drops the logo's own rounded tile, because iOS masks the corners itself. The files carry no alpha channel: App Store Connect rejects an icon that has one.
 
+## Swapping the Firebase project
+
+A harness run needs the cloud model to answer. When the usual project's model is unavailable, `scripts/use-firebase-config.sh` points the app at another project's `GoogleService-Info.plist` and puts the original back afterwards:
+
+```bash
+scripts/use-firebase-config.sh --which                  # which project is active
+scripts/use-firebase-config.sh /path/to/GoogleService-Info.plist
+scripts/use-firebase-config.sh --restore
+```
+
+It refuses a plist whose `BUNDLE_ID` is not `com.tade.LetterLens-iOS`, and keeps the original in `~/.letterlens/configs`, outside the repo, so a swap cannot be committed. Only the plist changes: the prompts and bundled Remote Config defaults stay put, and the harness skips `fetchAndActivate()`, so the other project needs no Remote Config template.
+
+A different project means a different App Check app. Run once, find `[AppCheckCore][I-GAC004001] App Check debug token` in the console, and register that token on the new project before expecting a cloud read to work.
+
 ## 15-letter harness
 
 Debug builds only. Launch argument `-LLHarness`. The test-kit letters are not in this repo. Point the environment variables at a local copy of that `letters` folder.
