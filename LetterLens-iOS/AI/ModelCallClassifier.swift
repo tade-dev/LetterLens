@@ -43,9 +43,14 @@ enum ModelCallClassifier {
         retryAfterSeconds(error, depth: 0)
     }
 
+    /// Cloud statuses worth another attempt. 429 is a rate limit; 500, 502, 503 and
+    /// 504 are the server saying it failed this time, not that the request was wrong.
+    /// 400, 401 and 403 are absent on purpose: repeating them cannot help.
+    static let transientCloudStatuses: Set<Int> = [429, 500, 502, 503, 504]
+
     static func isCloudRetryable(_ error: Error) -> Bool {
         guard let status = httpStatus(error) else { return false }
-        return status == 429 || status == 503
+        return transientCloudStatuses.contains(status)
     }
 
     private static func httpStatus(_ error: Error, depth: Int) -> Int? {
