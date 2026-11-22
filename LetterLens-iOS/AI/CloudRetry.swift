@@ -47,8 +47,9 @@ struct CloudRetryDecision: Equatable {
 enum CloudRetryPlanner {
     /// Decides the model and the wait after one failed cloud attempt.
     ///
-    /// The first HTTP 429 or 503 moves later attempts onto `fallbackModel` when that name is non-empty.
-    /// Later 429s and 503s stay on that model. Any other 4xx stops. At most three cloud attempts are made.
+    /// The first transient status (429, 500, 502, 503, 504) moves later attempts onto
+    /// `fallbackModel` when that name is non-empty, and later ones stay on that model.
+    /// 400, 401 and 403 stop at once. At most three cloud attempts are made.
     static func decide(
         error: Error,
         attemptsSoFar: Int,
@@ -56,8 +57,7 @@ enum CloudRetryPlanner {
         fallbackModel: String,
         jitterMilliseconds: Int
     ) -> CloudRetryDecision {
-        let status = ModelCallClassifier.httpStatus(error)
-        let retryable = status == 429 || status == 503
+        let retryable = ModelCallClassifier.isCloudRetryable(error)
         guard retryable, attemptsSoFar < CloudBackoff.maxAttempts else {
             return CloudRetryDecision(nextModel: currentModel, backoffMilliseconds: 0, shouldRetry: false)
         }

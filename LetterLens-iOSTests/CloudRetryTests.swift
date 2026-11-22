@@ -145,6 +145,69 @@ private final class RecordingClock: RetryClock {
         #expect(outcome.state.attemptsUsed == 3)
     }
 
+    /// run12 letters 4 and 7, and run15 letters 3 and 9, each died on a single 500
+    /// with no second attempt. 500 is the server failing, not the request being wrong.
+    @Test func a500SwitchesToTheFallbackModelInsteadOfGivingUp() async {
+        let clock = RecordingClock()
+        var calls: [String] = []
+        let outcome = await CloudRetryRunner.run(
+            state: CloudRetryState(modelName: "gemini-3.8-flash", attemptsUsed: 0),
+            fallbackModel: "gemini-3.5-flash-lite",
+            jitterMilliseconds: { 0 },
+            sleeper: clock
+        ) { model in
+            calls.append(model)
+            if calls.count == 1 {
+                throw NSError(domain: ModelCallClassifier.backendErrorDomain, code: 500)
+            }
+            return CloudModelOutput(text: "{}", modelVersion: model)
+        }
+        #expect(calls == ["gemini-3.8-flash", "gemini-3.5-flash-lite"])
+        #expect(outcome.output?.text == "{}")
+        #expect(clock.delays == [2_000])
+    }
+
+    @Test func everyTransientServerStatusIsRetried() async {
+        for status in [500, 502, 503, 504, 429] {
+            let clock = RecordingClock()
+            var calls = 0
+            let outcome = await CloudRetryRunner.run(
+                state: CloudRetryState(modelName: "primary", attemptsUsed: 0),
+                fallbackModel: "fallback",
+                jitterMilliseconds: { 0 },
+                sleeper: clock
+            ) { _ in
+                calls += 1
+                if calls == 1 {
+                    throw NSError(domain: ModelCallClassifier.backendErrorDomain, code: status)
+                }
+                return CloudModelOutput(text: "ok", modelVersion: "fallback")
+            }
+            #expect(calls == 2, "status \(status) should have been retried")
+            #expect(outcome.output != nil)
+        }
+    }
+
+    /// Repeating these cannot help, so they must still stop on the first reply.
+    @Test func permanentStatusesStillStopImmediately() async {
+        for status in [400, 401, 403] {
+            let clock = RecordingClock()
+            var calls = 0
+            let outcome = await CloudRetryRunner.run(
+                state: CloudRetryState(modelName: "primary", attemptsUsed: 0),
+                fallbackModel: "fallback",
+                jitterMilliseconds: { 0 },
+                sleeper: clock
+            ) { _ in
+                calls += 1
+                throw NSError(domain: ModelCallClassifier.backendErrorDomain, code: status)
+            }
+            #expect(calls == 1, "status \(status) must not be retried")
+            #expect(outcome.output == nil)
+            #expect(clock.delays.isEmpty)
+        }
+    }
+
     @Test func aClientErrorStopsWithoutSleeping() async {
         let clock = RecordingClock()
         var calls: [String] = []
