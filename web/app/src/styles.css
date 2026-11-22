@@ -1,44 +1,39 @@
+/* Clear Ink. Tokens and type are docs/BRAND.md; the layout is design/html/11-Web.html.
+   Light only, like the iOS app: the brand defines no dark palette. */
 :root {
   color-scheme: light;
-  --bg: #f3efe6;
-  --ink: #1c1915;
-  --muted: #4e463c;
-  --card: #fffdf8;
-  --line: #ddd4c4;
-  --accent: #0d5c54;
-  --accent-ink: #f4fffc;
-  --device: #e5f3f1;
-  --device-ink: #083f3a;
-  --cloud: #fff1d6;
-  --cloud-ink: #5c3b09;
-  --alert: #fdeceb;
-  --alert-ink: #6f221c;
-  --focus: #0b3f3b;
-  --shadow: 0 16px 40px rgba(48, 36, 18, 0.06);
-  --serif: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
-  --sans: "Avenir Next", "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-}
+  --ink: #14213D;
+  --ink-secondary: #4A5568;
+  --ground: #F5F6F8;
+  --surface: #FFFFFF;
+  --line: #E3E6EC;
+  --control-border: #C9CED8;
+  --device: #0E7A5A;
+  --device-tint: #E6F4EE;
+  --device-ink: #0B5E45;
+  --cloud: #2D5BD7;
+  --cloud-tint: #E8EEFC;
+  --deadline: #9A4D00;
+  --deadline-tint: #FDF1E1;
+  --deadline-quote: #5C3A10;
+  --warning: #B42318;
+  --warning-tint: #FDECEA;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg: #141311;
-    --ink: #f6f1e8;
-    --muted: #d2c8ba;
-    --card: #221f1b;
-    --line: #3d362e;
-    --accent: #8fd0c8;
-    --accent-ink: #10211f;
-    --device: #163330;
-    --device-ink: #d7f6f1;
-    --cloud: #3a2d16;
-    --cloud-ink: #ffe3ad;
-    --alert: #3d221f;
-    --alert-ink: #ffd0cb;
-    --focus: #b7ebe4;
-    --shadow: none;
-  }
+  /* Older names still used further down this file. */
+  --bg: var(--ground);
+  --muted: var(--ink-secondary);
+  --card: var(--surface);
+  --accent: var(--ink);
+  --accent-ink: #FFFFFF;
+  --alert: var(--warning-tint);
+  --alert-ink: var(--warning);
+  --focus: var(--cloud);
+  --shadow: 0 16px 40px rgba(20, 33, 61, 0.06);
+
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: var(--display);
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -47,16 +42,16 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(13, 92, 84, 0.08), transparent 28rem),
-    var(--bg);
+  background: var(--ground);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 1.0625rem;
   line-height: 1.55;
 }
 
-body, button, textarea, input { font: inherit; }
+/* Controls only. Including `body` here reset its own font-family to the
+   document default, so the body text never used --sans. */
+button, textarea, input, select { font: inherit; }
 
 .skip {
   position: absolute;
@@ -77,26 +72,75 @@ body, button, textarea, input { font: inherit; }
 }
 
 .mast, main, footer {
-  width: min(44rem, calc(100% - 2rem));
+  width: min(72.5rem, calc(100% - 2rem));
   margin-inline: auto;
 }
 
 .mast { padding: 2.5rem 0 0.5rem; }
 
+.mast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.5rem 0 0;
+}
+
+.lockup { display: flex; align-items: center; gap: 0.625rem; }
+
 .mark {
-  margin: 0 0 0.75rem;
-  color: var(--accent);
+  margin: 0;
+  font-family: var(--display);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.82rem;
+  font-size: 1.375rem;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+/* Screen 11's badge. Green is only ever "where it was read". */
+.chrome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: var(--device-tint);
+  color: var(--device);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Must follow .chrome-badge to win on equal specificity. Neutral until the
+   check comes back and whenever it cannot run: green would claim a private
+   read that is not happening. */
+.chrome-badge-off {
+  background: #EEF0F4;
+  color: var(--ink-secondary);
+}
+
+/* Intake left, card right, stacking under 60rem. */
+.columns {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 60rem) {
+  .columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
+}
+
+.intro h1 {
+  font-size: clamp(2.1rem, 3.4vw, 2.75rem);
+  letter-spacing: -0.8px;
 }
 
 h1, h2, h3 {
-  font-family: var(--serif);
-  font-weight: 560;
+  font-family: var(--display);
+  font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 h1 { font-size: clamp(2.1rem, 4vw, 3.2rem); margin: 0 0 0.8rem; }
