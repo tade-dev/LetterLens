@@ -83,10 +83,6 @@ struct UnsupportedDeviceSheet: View {
             bounce = true
             didAppear = true
         }
-        .onDisappear {
-            guard didAppear else { return }
-            resolveDismiss()
-        }
     }
 
     private var heroForeground: Color {
@@ -245,14 +241,13 @@ struct UnsupportedDeviceSheet: View {
         }
     }
 
-    private func resolveDismiss() {
-        guard choice.resolveDismiss().declinedByDismiss else { return }
-        switch prompt {
-        case .cloudFallback:
-            onNotNow()
-        case .keepPrivate:
-            onKeepPrivate()
-        }
+    /// Whether this sheet went away without a button being pressed. The caller's
+    /// `onDismiss` is the one reliable place to ask: `onDisappear` also fires when
+    /// SwiftUI rebuilds the sheet's content, which it does within a few
+    /// milliseconds of presenting. Acting on that reported the rebuild as the
+    /// reader declining, and closed the sheet on its own.
+    func wasDeclinedByDismiss() -> Bool {
+        choice.resolveDismiss().declinedByDismiss
     }
 }
 

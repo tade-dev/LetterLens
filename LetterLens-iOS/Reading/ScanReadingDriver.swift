@@ -112,12 +112,63 @@ enum ScanReadingFailure {
         TextRecognizer.Failure.unreadable.errorDescription ?? "That file could not be read as a letter."
     }
 
+    /// Shown to the reader, so it never carries SDK text. A letter that cannot be
+    /// read produced "The operation couldn't be completed.
+    /// (FirebaseAILogic.GenerateContentError error 0.)" on screen.
+    static let generic = String(
+        localized: "This letter could not be read. Try again in a moment."
+    )
+
+    static let offline = String(
+        localized: "No connection, so the letter stayed on this iPhone. Try again when you are online."
+    )
+
+    static let busy = String(
+        localized: "The reading service is busy. Try again in a moment."
+    )
+
     static func message(for error: Error) -> String {
-        if let described = (error as? LocalizedError)?.errorDescription, !described.isEmpty {
+        if let described = (error as? LocalizedError)?.errorDescription,
+           !described.isEmpty,
+           !readsLikeDeveloperText(described) {
             return described
         }
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
+                return offline
+            default:
+                return generic
+            }
+        }
+        if let status = ModelCallClassifier.httpStatus(error),
+           ModelCallClassifier.transientCloudStatuses.contains(status) {
+            return busy
+        }
         let fallback = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
-        return fallback.isEmpty ? unreadable : fallback
+        if fallback.isEmpty || readsLikeDeveloperText(fallback) {
+            return generic
+        }
+        return fallback
+    }
+
+    /// Framework strings name a type, a domain or a numeric code. None of that
+    /// means anything to someone holding a letter.
+    static func readsLikeDeveloperText(_ text: String) -> Bool {
+        let markers = [
+            "couldn't be completed",
+            "couldn’t be completed",
+            "Error Domain=",
+            "NSURLErrorDomain",
+            "FirebaseAILogic",
+            "GenerateContentError",
+            "NSError",
+        ]
+        if markers.contains(where: { text.localizedCaseInsensitiveContains($0) }) {
+            return true
+        }
+        // "… error 0.)" and friends.
+        return text.range(of: #"(?i)\berror -?\d+\b"#, options: .regularExpression) != nil
     }
 }
 

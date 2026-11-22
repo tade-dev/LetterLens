@@ -53,6 +53,10 @@ struct ScanEntryScreen: View {
     @State private var showPrivacy = false
     @State private var afterSheet: AfterUnsupportedSheet?
     @State private var captureToken = 0
+    /// The read outlives this screen. `.task` is tied to the view, and pushing the
+    /// reading screen covers this one, which cancels it: the model request died
+    /// with NSURLErrorCancelled before any answer came back.
+    @State private var readTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppConfig.self) private var config
 
@@ -178,17 +182,25 @@ struct ScanEntryScreen: View {
         .onChange(of: showPDF) { _, _ in openPickedWhenSheetIsGone() }
         .sensoryFeedback(.success, trigger: captureToken)
         .preferredColorScheme(.light)
-        .task(id: captureToken) {
-            await runReadingIfNeeded()
+        .onDisappear {
+            // Only tear the read down when this screen is actually gone, not when
+            // the reading screen is pushed over it.
+            if showReading == false {
+                readTask?.cancel()
+                readTask = nil
+            }
         }
     }
 
-    private func runReadingIfNeeded() async {
-        guard captureToken > 0, let progress = readingProgress else { return }
-        let generation = handoff.generation
-        let started = readingStarted
-        let images = pages
-        let path = progress.path
+    /// Everything it needs is passed in, so it does not depend on view state that
+    /// may have moved on by the time the model answers.
+    private func runReading(
+        progress: ReadingProgress,
+        images: [UIImage],
+        path: ReadingPath,
+        generation: UUID,
+        started: Date
+    ) async {
         let schemaVersion = config.cardSchemaVersion
         _ = await ScanReadingDriver.read(
             pages: images,
@@ -372,10 +384,21 @@ struct ScanEntryScreen: View {
         readingStarted = Date()
         pages = images
         pendingImages = []
-        readingProgress = ReadingProgress(pagesTotal: images.count, path: path)
+        let progress = ReadingProgress(pagesTotal: images.count, path: path)
+        readingProgress = progress
         captureToken += 1
         withAnimation(pushAnimation) {
             showReading = true
+        }
+        readTask?.cancel()
+        readTask = Task { @MainActor in
+            await runReading(
+                progress: progress,
+                images: images,
+                path: path,
+                generation: handoff.generation,
+                started: readingStarted
+            )
         }
     }
 
