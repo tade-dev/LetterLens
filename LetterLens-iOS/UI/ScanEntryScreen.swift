@@ -35,6 +35,10 @@ struct ScanEntryScreen: View {
     @State private var didOpenShared = false
     @State private var photoItem: PhotosPickerItem?
     @State private var pendingScan: [UIImage] = []
+    /// Pages chosen in the photo picker or the file importer. They wait here until
+    /// that sheet has actually gone, because presenting the unsupported-device
+    /// sheet while another is still dismissing loses it.
+    @State private var pendingPicked: [UIImage] = []
     @State private var pendingImages: [UIImage] = []
     @State private var pages: [UIImage] = []
     @State private var readingProgress: ReadingProgress?
@@ -152,7 +156,8 @@ struct ScanEntryScreen: View {
             guard case .success(let urls) = result, let url = urls.first else { return }
             let images = CapturedPageLoader.images(fromPDFAt: url)
             guard !images.isEmpty else { return }
-            openReading(images)
+            pendingPicked = images
+            openPickedWhenSheetIsGone()
         }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
@@ -160,10 +165,15 @@ struct ScanEntryScreen: View {
                 let data = try? await item.loadTransferable(type: Data.self)
                 photoItem = nil
                 if let data, let image = CapturedPageLoader.image(fromPhotoData: data) {
-                    openReading([image])
+                    pendingPicked = [image]
+                    openPickedWhenSheetIsGone()
                 }
             }
         }
+        // Loading the photo and dismissing the picker race, so whichever finishes
+        // last starts the read.
+        .onChange(of: showPhotos) { _, _ in openPickedWhenSheetIsGone() }
+        .onChange(of: showPDF) { _, _ in openPickedWhenSheetIsGone() }
         .sensoryFeedback(.success, trigger: captureToken)
         .preferredColorScheme(.light)
         .task(id: captureToken) {
@@ -306,6 +316,17 @@ struct ScanEntryScreen: View {
         .padding(.horizontal, LLSpace.screen)
         .padding(.vertical, LLSpace.m)
         .background(LLColor.ground)
+    }
+
+    /// Starts the read once no picker is on screen. `openReading` may present the
+    /// unsupported-device sheet, and SwiftUI drops that presentation if another
+    /// sheet is still going away. The camera path already waits, through
+    /// `fullScreenCover(onDismiss:)`; this is the same wait for the other two.
+    private func openPickedWhenSheetIsGone() {
+        guard !showPhotos, !showPDF, !pendingPicked.isEmpty else { return }
+        let images = pendingPicked
+        pendingPicked = []
+        openReading(images)
     }
 
     private func openPendingScan() {
