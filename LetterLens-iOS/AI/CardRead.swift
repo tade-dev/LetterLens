@@ -111,9 +111,9 @@ enum CardPipelineError: LocalizedError {
         case .emptyOCR:
             "No text was found on the page."
         case .firebaseNotConfigured:
-            "Firebase isn't configured. Add GoogleService-Info.plist to LetterLens-iOS and rebuild."
+            "Firebase isn’t configured. Add GoogleService-Info.plist to LetterLens-iOS and rebuild."
         case .privateReadUnavailable(let reason):
-            "Can't read privately on this iPhone. \(reason)"
+            "Can’t read privately on this iPhone. \(reason)"
         case .emptyModelResponse:
             "The model returned an empty reply."
         case .invalidJSON:

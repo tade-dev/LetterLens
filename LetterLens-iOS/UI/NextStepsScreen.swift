@@ -255,7 +255,7 @@ private enum NextStepsPreview {
                 detail: "Look up a phone number or website you trust."
             ),
         ],
-        script: "Hello, this is [NAME_1]. My reference is [REF_1]. I'd like to talk about the letter I was sent."
+        script: "Hello, this is [NAME_1]. My reference is [REF_1]. I’d like to talk about the letter I was sent."
     )
 }
 

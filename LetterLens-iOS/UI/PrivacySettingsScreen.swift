@@ -109,7 +109,7 @@ struct PrivacySettingsScreen: View {
         case .available:
             "On-device reading is ready"
         case .unavailable:
-            "On-device reading isn't available"
+            "On-device reading isn’t available"
         }
     }
 
@@ -118,7 +118,7 @@ struct PrivacySettingsScreen: View {
         case .available:
             "Apple Intelligence · works offline"
         case .unavailable:
-            "Apple Intelligence isn't on this iPhone"
+            "Apple Intelligence isn’t on this iPhone"
         }
     }
 
@@ -184,7 +184,7 @@ struct PrivacySettingsScreen: View {
     private var howItWorks: some View {
         VStack(alignment: .leading, spacing: LLSpace.s) {
             LLSectionLabel(text: "How LetterLens works")
-            Text("Your iPhone reads the letter with Apple's on-device model. If that isn't available, or you ask for a plan, Google Gemini is used through Firebase, only after you agree and with your details removed.")
+            Text("Your iPhone reads the letter with Apple’s on-device model. If that isn’t available, or you ask for a plan, Google Gemini is used through Firebase, only after you agree and with your details removed.")
                 .clearInkBody14()
                 .foregroundStyle(LLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)

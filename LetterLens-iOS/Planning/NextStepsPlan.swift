@@ -109,7 +109,7 @@ struct LocalSampleNextStepsPlanner: NextStepsPlanner {
         if let reference {
             parts.append("My reference is \(reference).")
         }
-        parts.append("I'd like to talk about the letter I was sent.")
+        parts.append("I’d like to talk about the letter I was sent.")
         return parts.joined(separator: " ")
     }
 }

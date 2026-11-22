@@ -123,18 +123,18 @@ struct UnsupportedDeviceSheet: View {
     private var title: LocalizedStringKey {
         switch prompt {
         case .cloudFallback:
-            "This iPhone can't read letters privately"
+            "This iPhone can’t read letters privately"
         case .keepPrivate:
-            "This iPhone can't read letters on its own"
+            "This iPhone can’t read letters on its own"
         }
     }
 
     private var message: LocalizedStringKey {
         switch prompt {
         case .cloudFallback:
-            "On-device reading needs Apple Intelligence. We can read it in the cloud with Google's Gemini instead."
+            "On-device reading needs Apple Intelligence. We can read it in the cloud with Google’s Gemini instead."
         case .keepPrivate:
-            "Reading on the phone needs Apple Intelligence, and this iPhone doesn't have it. You've turned on Never upload, so we won't send your letter anywhere."
+            "Reading on the phone needs Apple Intelligence, and this iPhone doesn’t have it. You’ve turned on Never upload, so we won’t send your letter anywhere."
         }
     }
 
@@ -142,7 +142,7 @@ struct UnsupportedDeviceSheet: View {
         VStack(alignment: .leading, spacing: LLSpace.sm) {
             Text("Nothing was read and nothing was sent.")
                 .fixedSize(horizontal: false, vertical: true)
-            Text("To use the cloud, turn off Never upload in Privacy. We'll still ask before anything is sent.")
+            Text("To use the cloud, turn off Never upload in Privacy. We’ll still ask before anything is sent.")
                 .fixedSize(horizontal: false, vertical: true)
         }
         .clearInkBody14()

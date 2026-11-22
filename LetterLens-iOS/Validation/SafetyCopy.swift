@@ -25,7 +25,12 @@ enum SafetyCopy {
         "isn't a scam",
         "is not a scam",
     ].compactMap { phrase in
-        let pattern = NSRegularExpression.escapedPattern(for: phrase)
+        // A model writes "it’s safe" with a typographic apostrophe as often as
+        // "it's safe". Matching only the straight one let the claim through the
+        // single guard whose whole job is never to call a letter safe.
+        let pattern = NSRegularExpression
+            .escapedPattern(for: phrase)
+            .replacingOccurrences(of: "'", with: "['\u{2019}\u{02BC}]")
         return try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
     }
 
