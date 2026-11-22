@@ -177,16 +177,55 @@ textarea, pre {
   padding: 0.85rem 0.95rem;
 }
 
-textarea { min-height: 16rem; resize: vertical; }
+/* 16rem of empty box dominated the column and left the drop zone looking like
+   an afterthought. This balances the two halves of the intake. */
+textarea { min-height: 11rem; resize: vertical; }
 
 .help { margin: 0.45rem 0 0; font-size: 0.98rem; }
 
-.file {
-  margin-top: 1rem;
-  font-weight: 700;
+/* The browser's file control is the only unstyled chrome on the page, so it is
+   hidden from sight and the label carries the look. Not display:none: the input
+   must stay focusable, and clicking the label still opens the picker. */
+.dropzone {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1.6rem 1.25rem;
+  text-align: center;
+  border: 2px dashed var(--control-border);
+  border-radius: 1.1rem;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
-.file input { margin-top: 0.4rem; display: block; }
+.dropzone:hover { border-color: var(--ink-secondary); }
+
+.dropzone:has(.dropzone-input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.dropzone.is-dragging {
+  border-color: var(--device);
+  background: var(--device-tint);
+  transform: scale(1.01);
+}
+
+.dropzone-icon { color: var(--ink); }
+.dropzone-title { font-weight: 600; }
+.dropzone-hint { font-size: 0.92rem; color: var(--muted); }
+
+.dropzone-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 
 .actions {
   display: flex;
@@ -204,7 +243,18 @@ button {
   color: var(--accent-ink);
   font-weight: 700;
   cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
 }
+
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+textarea {
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+textarea:focus { border-color: var(--ink-secondary); background: var(--surface); }
 
 button[type="button"],
 #consent-cancel,
@@ -324,6 +374,40 @@ blockquote {
 }
 
 .card section + section { margin-top: 1.1rem; }
+
+/* The card used to appear fully formed. Its blocks now rise in order, which
+   reads as the answer arriving rather than the page redrawing. --i is set per
+   child in renderCard. */
+@keyframes ll-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.card > * {
+  animation: ll-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+.badge {
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.chrome-badge {
+  transition: background 220ms ease, color 220ms ease;
+}
+
+.alert, .readiness { animation: ll-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Honour the system setting: no movement, and nothing left mid-fade. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .dropzone.is-dragging { transform: none; }
+}
 .card ul { margin: 0; padding-left: 1.15rem; }
 .meta { margin-bottom: 0; font-size: 0.95rem; }
 

@@ -107,10 +107,40 @@ export function mount(root: HTMLElement): void {
     sync();
   });
 
+  // Dragging a file anywhere over the zone highlights it. dragleave fires when
+  // the pointer crosses a child, so the counter stops it flickering.
+  let dragDepth = 0;
+  const setDragging = (on: boolean) => {
+    shell.fileLabel.classList.toggle("is-dragging", on);
+  };
+  shell.fileLabel.addEventListener("dragenter", (event) => {
+    event.preventDefault();
+    dragDepth += 1;
+    setDragging(true);
+  });
+  shell.fileLabel.addEventListener("dragover", (event) => {
+    event.preventDefault();
+  });
+  shell.fileLabel.addEventListener("dragleave", () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) setDragging(false);
+  });
+  shell.fileLabel.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dragDepth = 0;
+    setDragging(false);
+    const dropped = event.dataTransfer?.files?.[0];
+    if (dropped) loadFile(dropped);
+  });
+
   shell.file.addEventListener("change", () => {
     const file = shell.file.files?.[0];
     shell.file.value = "";
     if (!file) return;
+    loadFile(file);
+  });
+
+  function loadFile(file: File): void {
     void readTxt(file)
       .then((text) => {
         shell.letter.value = text;
@@ -121,7 +151,7 @@ export function mount(root: HTMLElement): void {
         shell.fileStatus.textContent = "";
         showAlert(error instanceof Error ? error.message : "That file could not be read.");
       });
-  });
+  }
 
   shell.form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -341,6 +371,15 @@ function confirmSend(
   });
 }
 
+/** Numbers the card's blocks so each one rises just after the last. */
+function stagger(host: HTMLElement): void {
+  let index = 0;
+  for (const child of host.children) {
+    (child as HTMLElement).style.setProperty("--i", String(index));
+    index += 1;
+  }
+}
+
 function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, modelName: string | null): void {
   host.hidden = false;
   host.replaceChildren();
@@ -438,6 +477,7 @@ function renderCard(host: HTMLElement, card: LetterCard, place: AnswerPlace, mod
     ? `Card schema version 2. Cloud model: ${modelName}.`
     : "Card schema version 2.";
   host.append(meta);
+  stagger(host);
   title.focus();
 }
 
@@ -532,6 +572,7 @@ interface Shell {
   fileStatus: HTMLElement;
   readiness: HTMLElement;
   chromeBadge: HTMLElement;
+  fileLabel: HTMLLabelElement;
   download: HTMLButtonElement;
   read: HTMLButtonElement;
   cloud: HTMLButtonElement;
@@ -597,19 +638,29 @@ function buildShell(): Shell {
   letter.id = "letter";
   letter.name = "letter";
   letter.required = true;
-  letter.rows = 14;
+  letter.rows = 9;
   letter.spellcheck = true;
   letter.autocomplete = "off";
   letter.setAttribute("aria-describedby", "letter-help");
   const help = el("p", { id: "letter-help", className: "help" });
   help.textContent = "Paste the letter, or upload a .txt file. The text stays in this page until you agree to a cloud read.";
-  const fileLabel = el("label", { className: "file" });
-  fileLabel.append(document.createTextNode("Upload a .txt file"));
+  // The browser's own file control is the one piece of unstyled chrome on the
+  // page. The input stays in the DOM for the keyboard and for assistive tech;
+  // the label is what anyone sees, and it doubles as a drop target.
+  const fileLabel = document.createElement("label");
+  fileLabel.className = "dropzone";
+  fileLabel.htmlFor = "letter-file";
+  fileLabel.insertAdjacentHTML("afterbegin", UPLOAD_SVG);
+  const dropTitle = el("span", { className: "dropzone-title" });
+  dropTitle.textContent = "Drop a .txt file here";
+  const dropHint = el("span", { className: "dropzone-hint" });
+  dropHint.textContent = "or click to choose a file";
   const file = document.createElement("input");
   file.type = "file";
   file.accept = ".txt,text/plain";
   file.id = "letter-file";
-  fileLabel.append(file);
+  file.className = "dropzone-input";
+  fileLabel.append(dropTitle, dropHint, file);
   const fileStatus = el("p", { className: "help", role: "status" });
 
   const actions = el("div", { className: "actions" });
@@ -680,6 +731,7 @@ function buildShell(): Shell {
     fileStatus,
     readiness,
     chromeBadge,
+    fileLabel,
     download,
     read,
     cloud,
@@ -719,3 +771,5 @@ function el(tag: string, attrs: Record<string, string> = {}, text?: string): HTM
 /** Brand mark from design/logo.svg: ink tile, white envelope, green lens. */
 const LOGO_SVG = `<svg width="36" height="36" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect width="48" height="48" rx="12" fill="#14213D"/><rect x="9" y="14" width="24" height="18" rx="3" fill="none" stroke="#FFFFFF" stroke-width="2.4"/><path d="M9.5 15.5 21 24l11.5-8.5" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round"/><circle cx="32" cy="30" r="6.5" fill="#14213D" stroke="#3FC79A" stroke-width="2.6"/><path d="M36.8 34.8 40 38" stroke="#3FC79A" stroke-width="2.8" stroke-linecap="round"/></svg>`;
 
+
+const UPLOAD_SVG = `<svg class="dropzone-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>`;
